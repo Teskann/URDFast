@@ -7,6 +7,8 @@ Created on Fri Jul 17 18:20:27 2020
 
 import logging
 import sys
+from PyQt5.QtGui import QDesktopServices
+from PyQt5.QtCore import QUrl
 from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtWidgets import QFileDialog, QTreeWidgetItem
 from PyQt5.QtGui import QFontDatabase
@@ -32,6 +34,9 @@ btm_list =  []      # Backward transition matrices list
 fk_list = []        # Forward Kinematics List
 jac_list = []       # Jacobian list
 robot_obj = 0       # Robot Object
+
+settings = {"language" : "Julia",
+            "filename" : "out"}
 
 path = './GUI/'
 
@@ -551,6 +556,19 @@ def init_gui_from_urdf(gui, robot):
             gui.listWidget_fk.addItem(root_name + '  ==>  ' +leaf_name)
             gui.listWidget_jac.addItem(root_name + '  ==>  ' +leaf_name)
 
+    # Checking checkboxes
+    gui.checkBox_ftm.setChecked(True)
+    gui.checkBox_btm.setChecked(False)
+    gui.checkBox_fk.setChecked(True)
+    gui.checkBox_jac.setChecked(True)
+    gui.checkBox_com.setChecked(True)
+    gui.checkBox_com_jac.setChecked(True)
+    
+    gui.lineEdit_fname.setText(robot.name)
+    update_settings(gui)
+    
+    gui.pushButton_generate.setEnabled(True)
+    
 # Open a file dialog _________________________________________________________
 
 def open_file_dialog(gui, progress_bar):
@@ -592,6 +610,31 @@ def open_file_dialog(gui, progress_bar):
         
         init_gui_from_urdf(gui, robot_obj)
 
+def update_settings(gui):
+    """
+    Description
+    -----------
+    
+    Updates the settings window
+    
+    Parameters
+    ----------
+    
+    gui : main_window.Ui_MainWindow
+        GUI to update
+        
+    Global Variable Used
+    --------------------
+    
+    settings : dict
+        Dictionnary of the settings
+    
+    """
+    
+    settings["filename"] = gui.lineEdit_fname.text()
+    ind = gui.comboBox_language.currentIndex()
+    settings["language"] = gui.comboBox_language.itemText(ind)
+    
 def generate(gui):
     """
     Description
@@ -623,6 +666,9 @@ def generate(gui):
     jac_list : list of string
         List of all the jacobians
     
+    settings : dict
+        Dictionnary of the settings for the code generation
+    
     Returns
     -------
     
@@ -640,6 +686,16 @@ def generate(gui):
     btm = btm_list if gui.checkBox_btm.isChecked() else []
     fk = fk_list if gui.checkBox_fk.isChecked() else []
     jac = jac_list if gui.checkBox_jac.isChecked() else []
+    
+    com = gui.checkBox_com.isChecked()
+    comjac = gui.checkBox_com_jac.isChecked()
+    
+    language = Language(settings["language"])
+    
+    generate_everything(robot_obj, ftm, btm,
+                        fk, jac, com, comjac,
+                        language,
+                        path + '../generated/'+ settings["filename"])
         
 # UI Main ____________________________________________________________________
 
@@ -659,6 +715,29 @@ def main():
     # setup ui
     ui = main_window.Ui_MainWindow()
     ui.setupUi(window)
+    
+    # Actions ................................................................
+    
+    ui.actionOpen.triggered.connect(lambda:
+                                    open_file_dialog(ui, ui.progressBar))
+        
+    ui.actionClose.triggered.connect(window.close)
+    
+    link_str = "https://github.com/Teskann/NYXX/blob/master/documentation"+\
+        "/usermanual.md"
+
+    ui.actionDocumentation.triggered.connect(lambda:
+        QDesktopServices.openUrl(QUrl(link_str)))
+        
+    link_str2 = "https://github.com/Teskann/NYXX"
+    
+    ui.actionView_Github.triggered.connect(lambda:
+        QDesktopServices.openUrl(QUrl(link_str2)))
+        
+    link_str3 = "https://github.com/Teskann/NYXX/issues/new"
+    
+    ui.actionReport_a_Bug.triggered.connect(lambda:
+        QDesktopServices.openUrl(QUrl(link_str3)))
     
     # Openning button ........................................................
         
@@ -712,14 +791,15 @@ def main():
     font_db = QFontDatabase()
     font_db.addApplicationFont("univers-condensed.ttf")
     
+    # Settings apply .........................................................
+    
+    ui.pushButton_2.clicked.connect(lambda: update_settings(ui))
+    
     # Generate Button ........................................................
     
-    ui.pushButton_generate.clicked.connect(lambda:
-                        generate_everything(robot_obj, ftm_list, btm_list,
-                                            fk_list, jac_list, True, True,
-                                            Language('python'),
-                                            path + '../generated/out'))
-
+    ui.pushButton_generate.clicked.connect(lambda:generate(ui))
+    ui.pushButton_generate.setEnabled(False)
+    
     # setup stylesheet
     file = open(path + "dark.qss")
     app.setStyleSheet(file.read())

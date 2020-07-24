@@ -123,7 +123,7 @@ class Ui_MainWindow(object):
         font = QtGui.QFont()
         font.setPointSize(5)
         self.progressBar.setFont(font)
-        self.progressBar.setProperty("value", 50)
+        self.progressBar.setProperty("value", 0)
         self.progressBar.setObjectName("progressBar")
         self.gridLayout_2.addWidget(self.progressBar, 5, 0, 1, 3)
         self.groupBox_info = QtWidgets.QGroupBox(self.centralwidget)
