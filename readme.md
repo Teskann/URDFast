@@ -1,9 +1,9 @@
-# NYXX - Generate Code From URDF
+# URDFast - Generate Code From URDF
 
 *Nyx is the Greek goddess (or personification) of the night. A shadowy figure, Nyx stood at or near the beginning of creation.*
 
 ## Description
-*NYXX* is a Python program to generate code from [URDF XML files](http://wiki.ros.org/urdf/XML) to implement a controller for your favorite robot. It comes with a catchy GUI to make its use easier.
+*URDFast* is a Python program to generate code from [URDF XML files](http://wiki.ros.org/urdf/XML) to implement a controller for your favorite robot. It comes with a catchy GUI to make its use easier.
 This tool features code genetation for :
 
 * Forward transition matrices
@@ -20,7 +20,7 @@ The supported languages for code generation are currently :
 
 More languages and features will be added in future versions, make sure to check this repository frequently so you don't miss any update !
 
-![alt text](./documentation/Images/nyxx_main_window.png "The main window of NYXX")
+![alt text](./documentation/Images/urdfast_main_window.png "The main window of URDFast")
 
 ## Getting Started
 ### 1. Needed Packages
@@ -40,28 +40,28 @@ pip install anytree
 pip install PyQt5
 ```
 
-The others parkages used in this project should have been installed with Python. However, if you encounter a `ModuleNotFoundError` when running NYXX, consider installing the missing package running :
+The others parkages used in this project should have been installed with Python. However, if you encounter a `ModuleNotFoundError` when running URDFast, consider installing the missing package running :
 
 ```bash
 pip install <packageName>
 ```
 
-### 2. Download NYXX
+### 2. Download URDFast
 
 First, clone this repository running :
 ```bash
-git clone https://github.com/Teskann/NYXX
+git clone https://github.com/Teskann/URDFast
 ```
 You can also download this repository as ZIP file if you don't have git installed on your computer.
 
-### 3. Launch NYXX
+### 3. Launch URDFast
 
-Once you have got the files, you can launch the program running `nyxx.py` file :
+Once you have got the files, you can launch the program running `urdfast.py` file :
 ```bash
-python nyxx.py
+python urdfast.py
 ```
 
-NYXX has been developped using **Windows 10** but as Python and PyQt5 are cross-platform, it should work on **Mac OS** and **Linux** distributions as well.
+URDFast has been developped using **Windows 10** but as Python and PyQt5 are cross-platform, it should work on **Mac OS** and **Linux** distributions as well.
 
 ### 4. Learn how to use it !
 
@@ -89,4 +89,4 @@ This project has been inspired by the work of some other people :
 * The URDF parser `URDF.py` has been taken from a project carried out by some of my classmates working on a humanoid robot called *Poppy*. You can check out their amazing work on [their GitLab repository](https://gitlab.polytech.umontpellier.fr/docs/poppy).
 The authors are : Mathieu Célérier, Maxime Cognié, Hypolite Le Nabat, Enzo Rosarini and Nicolas Troesch.
 
-* The Dark Theme for the QT UI has been inspired by the work of [Alexhuszagh](https://github.com/Alexhuszagh) on [BreezeStyleSheets](https://github.com/Alexhuszagh/BreezeStyleSheets). This project provides a dark theme QSS file that has been used and modified to design the NYXX theme.
+* The Dark Theme for the QT UI has been inspired by the work of [Alexhuszagh](https://github.com/Alexhuszagh) on [BreezeStyleSheets](https://github.com/Alexhuszagh/BreezeStyleSheets). This project provides a dark theme QSS file that has been used and modified to design the URDFast theme.

@@ -1369,11 +1369,11 @@ def optimize(string):
     Returns all intermediate variables and the simplified expression
     
     Function only supports operators :
-        +
-        -
-        *
-        /
-        **
+        - +
+        - -
+        - *
+        - /
+        - **
     and every function call with eventually many parameters.
     
     Parameter

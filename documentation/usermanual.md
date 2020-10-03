@@ -1,10 +1,10 @@
-# NYXX User Manual
+# URDFast User Manual
 
 ## Installation
 
 ### 1. Prerequisties : Python & Packages
 
-*NYXX* is a Python program. You then need to have Python installed on your computer to run it. If you don't have Python yet, consider [installing it using Anaconda](https://www.anaconda.com/products/individual). Anaconda automatically installs a lot of amazing packages and some of them are needed to run this program. If you don't plan to start working with your own Python codes, a [classic installation](https://www.python.org/downloads/) is recommended as it will use less storage space. You will then need to install packages manually as shown below.
+*URDFast* is a Python program. You then need to have Python installed on your computer to run it. If you don't have Python yet, consider [installing it using Anaconda](https://www.anaconda.com/products/individual). Anaconda automatically installs a lot of amazing packages and some of them are needed to run this program. If you don't plan to start working with your own Python codes, a [classic installation](https://www.python.org/downloads/) is recommended as it will use less storage space. You will then need to install packages manually as shown below.
 
 This project uses various packages that need to be installed to run the program correctly :
 
@@ -22,32 +22,32 @@ pip install anytree
 pip install PyQt5
 ```
 
-The others parkages used in this project should have been installed with Python. However, if you encounter a `ModuleNotFoundError` when running NYXX, consider installing the missing package running :
+The others parkages used in this project should have been installed with Python. However, if you encounter a `ModuleNotFoundError` when running URDFast, consider installing the missing package running :
 
 ```bash
 pip install <packageName>
 ```
 
-### 2. Download NYXX
+### 2. Download URDFast
 
 First, clone this repository running in a shell :
 ```bash
-git clone https://github.com/Teskann/NYXX
+git clone https://github.com/Teskann/URDFast
 ```
 You can also download this repository as ZIP file if you don't have `git` installed on your computer.
 
-### 3. Launch NYXX
+### 3. Launch URDFast
 
-Once you have got the files, you can launch the program running `nyxx.py` file :
+Once you have got the files, you can launch the program running `urdfast.py` file :
 ```bash
-python nyxx.py
+python urdfast.py
 ```
 
 ## Main window
 
 The main window of the program looks like this :
 
-![alt text](./Images/nyxx_main_window.png "The main window of NYXX")
+![alt text](./Images/urdfast_main_window.png "The main window of URDFast")
 
 The window is divided in three parts :
 * Robot Information
@@ -60,7 +60,7 @@ To open a file, simply click on the *OPEN URDF FILE* button at the top center or
 
 This should open a file dialog in the *Examples* directory. You can pick one of the files in here to try the software or open your own URDF file.
 
-File openning can take a few seconds, especially if you have exotic joints transformations. This is normal and if your OS says NYXX is not responding, just wait, it shouldn't have crashed. The progress bar at the bottom will give you an idea of the remaining time.
+File openning can take a few seconds, especially if you have exotic joints transformations. This is normal and if your OS says URDFast is not responding, just wait, it shouldn't have crashed. The progress bar at the bottom will give you an idea of the remaining time.
 
 ### Robot Information (left)
 
@@ -80,7 +80,7 @@ This section is the heart of the software. It is where you select what you want 
 
 #### Transition Matrices
 
-This is where you select which transition matrices you want to generate. Transition matrices are expressed as 4x4 matrices in [homogeneous coordinates](https://en.wikipedia.org/wiki/Homogeneous_coordinates). They are associated with joints. If a joint `J` links two links `L1` and `L2`, the forward transition matrix associated to `J` is the expression of `L2` coordinates in the `L1`frame. The backward transition matrix associated to `J` is the expression of `L1` coordinates in the `L2`frame (this is actually the invert of the forward one). These matrices can depend on variables if `J` has degreees of freedom.
+This is where you select which transition matrices you want to generate. Transition matrices are expressed as 4x4 matrices in [homogeneous coordinates](https://en.wikipedia.org/wiki/Homogeneous_coordinates). They are associated with joints. If a joint `J` links two links `L1` and `L2`, the forward transition matrix associated to `J` is the expression of `L2` coordinates in the `L1`frame. The backward transition matrix associated to `J` is the expression of `L1` coordinates in the `L2`frame (this is actually the invert of the forward one). These matrices can depend on variables if `J` has degrees of freedom.
 
 By default, when you open a file, all joints are preselected for generation, forward and backward. You can remove some of them if you don't need them clicking on *Remove Selected* (multiple selection is allowed). To add a joint, select it in the combo box and click *Add*. Note that you can't add a joint that is already in the list.
 
@@ -132,7 +132,7 @@ where :
 * `d` represents the differentiation operator, 
 * `X`, `Y` and `Z` are the cartesian coordinates of `LN` in the `L1` frame,
 * `R`, `P` and `y` represent the roll, pitch and yaw of `LN` in the `L1` frame
-* `Dk` represent the variable associated with the degree of freedom of the joint `k` for `k` in `{1, ... , N}`.
+* `Dk` represents the variable associated with the degree of freedom of the joint `k` for `k` in `{1, ... , N}`.
 
 The code generated by this tool will call transition matrices functions associated with all the joints in the chain between the origin and destination. In the example above, the generated code will call transition matrices for `J1, ..., JN-1`. **Make sure to generate these functions in the *Transition Matrices* tab or the code will call functions that are not defined**.
 
@@ -169,16 +169,16 @@ Both the center of mass and the jacobian of the center of mass call transition m
 
 ### Settings
 
-In this section are located the settings of NYXX. You can change the language or the output file name (don't add the file extension to the file name, it will be added automatically during code generation).
+In this section are located the settings of URDFast. You can change the language or the output file name (don't add the file extension to the file name, it will be added automatically during code generation).
 
 Don't forget to click on *Apply* after you made your changes otherwise they won't be applied.
 
 ## Supported Files and Robot Types
 
 This program only supports XML URDF formatted files. XACRO files are not supported. If you don't know what is the URDF format, take a look at the [official documentation](http://wiki.ros.org/urdf/XML).
-Moreover, this program only supports **robots with a tree-like representation**. If you have loops in your physical architecture, it won't work because of infinite loops. This kind of robots may never be supported by this software as the tree representation is fundamental in the NYXX algorithms.
+Moreover, this program only supports **robots with a tree-like representation**. If you have loops in your physical architecture, it won't work because of infinite loops. This kind of robots may never be supported by this software as the tree representation is fundamental in the URDFast algorithms.
 
-Try to avoid commented lines `<!--...-->` in your URDF file, as some parsing errors have been detected with this, for some reason. This should be patched in a future version. If you can't parse the file althrough it should be correct, try to keep only `<link>` and `<joint>` elements (they are the only one used by NYXX). If the parser keeps failing, consider reporting the bug.
+Try to avoid commented lines `<!--...-->` in your URDF file, as some parsing errors have been detected with this, for some reason. This should be patched in a future version. If you can't parse the file althrough it should be correct, try to keep only `<link>` and `<joint>` elements (they are the only one used by URDFast). If the parser keeps failing, consider reporting the bug.
 
 If you open a not-supported file, it will throw an error and this can lead to the program dies, depending on your operating system (errors are not handeled in the GUI yet).
 

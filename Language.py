@@ -37,7 +37,7 @@ def indent(number):
     
     ind= ''
     
-    for k in range(number):
+    for _ in range(number):
         ind+='    '
     
     return ind
@@ -48,7 +48,7 @@ class Language:
     """
     Description
     -----------
-    
+
     Langauge objects. Describe the languages to generate code.
     
     Member Data

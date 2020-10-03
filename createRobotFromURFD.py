@@ -42,7 +42,7 @@ class Link:
         This class needs numpy dependency to work properly. You can install it
         using pip :
 
-        >>> $ pip install numpy  
+        >>> $ pip install numpy
 
         or with Anaconda (installed by default) :
 
@@ -111,7 +111,6 @@ class Link:
             directory containing createRobotFromURDF.py
 
             - Running example_0.urdf URDF file (with no <inertial> elements) :
-
             >>> urdfObj = URDF("./Examples/example_0.urdf")
             >>> linkObj = Link(urdfObj, 1)
             >>> print(linkObj)
@@ -205,11 +204,10 @@ class Link:
         containing createRobotFromURDF.py
 
         - Running example_0.urdf URDF file (with no <inertial> elements) :
-
         >>> urdfObj = URDF("./Examples/example_0.urdf")
         >>> linkObj = Link(urdfObj, 1)
         >>> print(linkObj)
-        Link Name : link2
+        Link Name : link2 "www.google.com"
         Link Center of Mass (m) : 
         [[0.]
          [0.]
