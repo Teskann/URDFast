@@ -22,7 +22,7 @@ For h2, h3 and h4 titles please write your title followed by `_`, `....` or `. .
 
 ## Online Documentation
 
-You will find all the documentation of URDFast Python files here : https://teskann.github.io/urdfast
+You will find all the documentation of URDFast Python files here : https://teskann.github.io/urdfast-documentation/
 
 ## Files & Folders
 
