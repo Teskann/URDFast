@@ -1,7 +1,5 @@
 # URDFast - Generate Code From URDF
 
-*Nyx is the Greek goddess (or personification) of the night. A shadowy figure, Nyx stood at or near the beginning of creation.*
-
 ## Description
 *URDFast* is a Python program to generate code from [URDF XML files](http://wiki.ros.org/urdf/XML) to implement a controller for your favorite robot. It comes with a catchy GUI to make its use easier.
 This tool features code genetation for :
