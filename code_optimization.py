@@ -1805,7 +1805,165 @@ def optimize(string):
     
                         
     return variable_names, expression
+
+
+def optimize(funcstr):
+    """
+    Description
+    -----------
     
+    Optimize a string function finding redundant operations.
+    Returns all intermediate variables and the simplified expression
+    
+    Function only supports operators :
+        - +
+        - -
+        - *
+        - /
+        - **
+    and every function call with eventually many parameters.
+    
+    Parameter
+    ---------
+    
+    funcstr : str
+        String representing a mathematical expression
+        
+    Returns
+    -------
+    
+    variables : list of dict of strings
+        List containing the definition of every variable
+        Every element of this list is a dict containing keys :
+            - 'name' (str) : variable name
+            - 'value' (str) : value of this variable
+            - 'type' (str) : 'double' or 'vect'
+    expression : str
+        New expression of the function string
+    
+    Examples
+    --------
+    
+    TODO
+    
+    """
+    
+    def var_name(operator, var_list):
+        """
+        Description
+        -----------
+        
+        Creates a new variable name from an operator / function that is not in
+        the given variable list
+        
+        Parameters
+        ----------
+        
+        operator : str
+            Operator or function name
+        var_list : list of str
+            List containing all the variables already created
+        
+        Returns
+        -------
+        
+        str
+            Variable name
+        """
+        
+        var = 'v_'
+        
+        dic = {"+" : "sum",
+               "-" : "sub",
+               "-u": "negative",
+               "+u": "positive",
+               "*" : "prod",
+               "**": "exp",
+               "@" : "matmul",
+               "/" : "div",
+               '[]': "vect"}
+        
+        if operator in dic.keys():
+            var += dic[operator]
+        else:
+            var += operator.replace('[','').replace(']','')
+        
+        if var in [x['name'] for x in var_list]:
+            i = 1
+            var += '_0'
+            while var in [x['name'] for x in var_list]:
+                var = "_".join(var.split('_')[:-1]) + '_' + str(i)
+                i += 1
+        return var
+    
+    # Variable list
+    # Every element of this list is a dict :
+    #   {'name' : variable name
+    #    'value' : Value of this variable
+    #    'type' : Variable type ('double' or 'vect')}
+    var_list = []
+    
+    # While redundancies are found
+    for k in range(10):
+        funcstr = funcstr.replace(' ', '')
+        funcstr = ' ' + funcstr + ' '
+        
+        var_nb = len(var_list)
+        
+        # Retrieving every operation
+        all_operations = find_everything(funcstr)
+        
+        # Getting the operation tree
+        tree = get_tree(all_operations)
+        
+        # Finding all leaves
+        leaves = []     # List of all the indices of the leaves
+        
+        i_o = 0
+        for node in tree:
+            if node.is_leaf:
+                leaves.append(i_o)
+            i_o += 1
+        
+        print(leaves, funcstr)
+        
+        # Finding redundancies
+        redundancies = []
+        k = 0
+        for i_l in leaves:
+            for i_l2 in leaves[k+1:]:
+                rend = render(all_operations[i_l])
+                if rend == render(all_operations[i_l2]):
+                    if rend not in redundancies:
+                        redundancies.append(rend)
+                        # Creating variable name
+                        var = {'name' : var_name(all_operations[i_l]
+                                                 ['operator'], var_list),
+                               'value' : rend,
+                               'type' : 'vect' if all_operations[i_l]
+                                   ['operator'] == "[]" else 'double'}
+                        var_list.append(var)
+            k += 1
+        
+        if redundancies == []:
+            break
+        
+        # Replacing redundant operations by a variable
+        for node in tree:
+            i_l = int(node.name)
+            for i_v,val in enumerate(all_operations[i_l]['operation']
+                                     ['str_val']):
+                for i_r, red in enumerate(redundancies):
+                    if red == val.strip() or '('+red+')' == val.strip():
+                        all_operations[i_l]['operation']['str_val'][i_v] = \
+                           var_list[i_r+var_nb]['name']
+                        # Removing child
+                        all_operations[i_l]['operation']['children'][i_v]=None
+                        # l_ch = list(tree[i_l].children)
+                        # l_ch.pop(i_v)
+                        # # tree[i_l].children = tuple(l_ch)
+        funcstr = render_from_tree(tree, all_operations)
+    return var_list, funcstr.strip()
 
 # ----------------------------------------------------------------------------
 # | MAIN - RUNNING TESTS                                                     |
@@ -1816,7 +1974,7 @@ if __name__ == '__main__':
     # Testing with a function string _________________________________________
     
     func_str = '[abs(cos(a1**(3-6)**5, 5-4)*arccos(x**2+5+0.1))-8-5*t**s'+\
-        '(k[0]/1)+a1**(3-6)**5*r*3, -6*R**3]'
+        '(k[0]/1)+a1**(3-6)**5*r*3+cos(x), -6*R**3+cos(x)]'
     oper = '-u'
     matches = catch_operator(func_str, oper)
     print(func_str)
@@ -1849,6 +2007,8 @@ if __name__ == '__main__':
             
     #liste, expr= optimize(func_str)
     
-    test = replace(func_str, ['**', False], ['^', False])
+    test = replace(func_str, ['**', False], ['exp', True])
     print(func_str)
-    print(test)
+    func_str = "sin(cos(x)+[a[0],1])+sin(cos(x)+[a[0],1])+cos(x)+1"
+    print(optimize(func_str))
+    #print(test)
