@@ -5,7 +5,7 @@ Created on Mon Jun 29 10:19:19 2020
 @author: Clément
 """
 
-from code_optimization import replace, replace_var
+from code_optimization import replace, replace_var, replace_many
 import re
 
 def indent(number):
@@ -430,8 +430,10 @@ class Language:
         
         expression = convert_all_sci_to_dbl(expression)
         
-        for op in self.operators:
-            expression = replace(expression, [op, False], self.operators[op])
+        list_op = [[op,False] for op in self.operators]
+        list_new_ops = [self.operators[op] for op in self.operators]
+        
+        expression = replace_many(expression, list_op, list_new_ops)
             
         for function in self.fcts:
             pattern = re.compile(r'(?:^|(?<=(\W)))_' + function + \
@@ -636,6 +638,7 @@ class Language:
         if docstr is not None:
             real_docstr += self.comment_par_beg
             if self.name == 'julia':
+                docstr=docstr.replace('\\', '\\\\')
                 real_docstr += '\n    ' + \
                     ' '.join(code.split('\n')[0].split(' ')[1:])
                 real_docstr += '\n'

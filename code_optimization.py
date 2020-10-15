@@ -366,7 +366,7 @@ def catch_operator(string, operator):
     # Right-to-left associative operators
     right_to_left_asso_op = ['**']
     
-    # List containing index of commutative operators with mort than 2 operands
+    # List containing index of commutative operators with more than 2 operands
     extra_operand_indices = []
         
     # Matches exactly the operator sequence if it's surrounded by a word char,
@@ -1274,6 +1274,12 @@ def replace(string, operator, new_operator):
     function in the string.  May  be  useful  to  convert an expression from a
     language to another.
     
+    BE CAREFUL : If  you  want  to  replace many operators in your string, use
+    replace_many()  instead  of  applying replace() many times. If you replace
+    an  operator  by a non-Python operator, it won't be detected for your next
+    replacement  and  you  will get a non-valid result. replace_many() is also
+    faster.
+    
     Parameters
     ----------
     
@@ -1315,6 +1321,62 @@ def replace(string, operator, new_operator):
         if op['operator'] == operator[0] and op['is_fct'] == operator[1]:
             op['operator'] = new_operator[0]
             op['is_fct'] = new_operator[1]
+        
+    return render_from_tree(tree, all_op)
+
+# Replace many objects _______________________________________________________
+
+def replace_many(string, operators, new_operators):
+    """
+    Description
+    -----------
+    
+    Replace many operators / functions  in  an expression by other operators /
+    functions in the string. May  be  useful  to  convert an expression from a
+    language to another.
+    
+    Parameters
+    ----------
+    
+    string : str
+        String representing a mathematical expression
+    
+    operators : list of list
+        Operators / functions you want to replace
+        Every element of the list is a list that contains :
+            - At index 0 => operator string value
+            - At index 1 => bool set to true if it is a function
+    new_operators : list of list
+        New value of the functions / operations
+        Every element of the list contains a list that contains :
+            - At index 0 => operator string value
+            - At index 1 => bool set to true if it is a function
+    
+    Returns
+    -------
+    
+    str :
+        Copy of the string with the substitution done
+    
+    Examples
+    --------
+    
+    TODO
+    
+    """
+    
+    all_op = find_everything(string)
+    
+    if len(all_op) == 0:
+        return string
+    
+    tree = get_tree(all_op)
+    
+    for i, operator in enumerate(operators):
+        for op in all_op:
+            if op['operator'] == operator[0] and op['is_fct'] == operator[1]:
+                op['operator'] = new_operators[i][0]
+                op['is_fct'] = new_operators[i][1]
         
     return render_from_tree(tree, all_op)
 
@@ -1807,7 +1869,7 @@ def optimize(string):
     return variable_names, expression
 
 
-def optimize(funcstr):
+def optimize(funcstr, incl_lists=False):
     """
     Description
     -----------
@@ -1823,11 +1885,15 @@ def optimize(funcstr):
         - **
     and every function call with eventually many parameters.
     
-    Parameter
-    ---------
+    Parameters
+    ----------
     
     funcstr : str
         String representing a mathematical expression
+    incl_lists : bool, optionnal
+        True if you also want to optimize list declarations
+        
+        False if you don't want. Defalut is False.
         
     Returns
     -------
@@ -1847,6 +1913,8 @@ def optimize(funcstr):
     TODO
     
     """
+    
+    # Create a new variable name .............................................
     
     def var_name(operator, var_list):
         """
@@ -1903,7 +1971,8 @@ def optimize(funcstr):
     #    'type' : Variable type ('double' or 'vect')}
     var_list = []
     
-    # While redundancies are found
+    # While redundancies are found ...........................................
+    
     for k in range(10):
         funcstr = funcstr.replace(' ', '')
         funcstr = ' ' + funcstr + ' '
@@ -1925,16 +1994,17 @@ def optimize(funcstr):
                 leaves.append(i_o)
             i_o += 1
         
-        print(leaves, funcstr)
+        # Finding redundancies . . . . . . . . . . . . . . . . . . . . . . . .
         
-        # Finding redundancies
         redundancies = []
         k = 0
         for i_l in leaves:
             for i_l2 in leaves[k+1:]:
                 rend = render(all_operations[i_l])
                 if rend == render(all_operations[i_l2]):
-                    if rend not in redundancies:
+                    if rend not in redundancies and\
+                            (all_operations[i_l]['operator'] != '[]' or\
+                             incl_lists):
                         redundancies.append(rend)
                         # Creating variable name
                         var = {'name' : var_name(all_operations[i_l]
@@ -1948,7 +2018,8 @@ def optimize(funcstr):
         if redundancies == []:
             break
         
-        # Replacing redundant operations by a variable
+        # Replacing redundant operations by a variable . . . . . . . . . . . .
+        
         for node in tree:
             i_l = int(node.name)
             for i_v,val in enumerate(all_operations[i_l]['operation']
@@ -2010,5 +2081,7 @@ if __name__ == '__main__':
     test = replace(func_str, ['**', False], ['exp', True])
     print(func_str)
     func_str = "sin(cos(x)+[a[0],1])+sin(cos(x)+[a[0],1])+cos(x)+1"
-    print(optimize(func_str))
+    func_str = "-2.58959520493816e-14*sin(theta_joint1)**4"
+    print(find_everything(func_str))
+    print(optimize(func_str, True))
     #print(test)
