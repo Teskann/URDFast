@@ -11,7 +11,7 @@ from sympy import Matrix, Symbol, cos, sin, Min, Max, nsimplify, simplify,\
     pretty
 from Language import Language
 from datetime import datetime
-from code_optimization import replace_var
+from code_optimization import replace_var, optimize
 from anytree import PreOrderIter
 
 # Generate Python code from Sympy Matrix _____________________________________
@@ -58,24 +58,16 @@ def generate_code_from_sym_mat(sympy_matrix, fname,
         
     # 1 - Getting the Sympy Matrix as string .................................
     
-    # Saving the matrix shape
-    shape = sympy_matrix.shape
+    # Optimizing code
+    varss, expr = optimize(str(sympy_matrix), incl_lists=False)
     
     # Matrix containing code samples
     code_mat = []
+    expr = expr[9:-3].replace(' ','')
+    elems = expr.split('],[')
     
-    # For 0 to the number of rows
-    for i in range(shape[0]):
-        # Empty matrix line
-        line = []
-        
-        # For 0 to the number of columns
-        for j in range(shape[1]):
-            element = str(sympy_matrix[i, j])
-            line.append(element)
-        
-        # Adding the created line to the matrix
-        code_mat.append(line)
+    for elem in elems:
+        code_mat.append(elem.split(','))
     
     # 2 - Gertting function parameters .......................................
     
@@ -126,7 +118,8 @@ def generate_code_from_sym_mat(sympy_matrix, fname,
         
         params.append(param)
     
-    r = language.generate_fct(fname, params, code_mat, docstr=docstr)
+    r = language.generate_fct(fname, params, code_mat, varss=varss,
+                              docstr=docstr)
     
     return r
 
@@ -1590,7 +1583,7 @@ if __name__ == '__main__':
     
     lang = Language('julia')
     s = ''
-    s += generate_all_matrices(robot_obj, list_tm, list_tm, language=lang)
+    s += generate_all_matrices(robot_obj, [], list_tm, language=lang)
     origins = ['link_0', 'joint_0']
     destinations = ['link_1' ,'link_3']
     s += '\n\n' + generate_all_fk(robot_obj, origins, destinations, lang)
@@ -1602,5 +1595,5 @@ if __name__ == '__main__':
     s+= '\n\n'+ generate_com(robot_obj, lang)
     
     s += '\n\n' + generate_com_jacobian(robot_obj, lang)
-    with open("Output."+lang.extension, "w") as text_file:
+    with open("Output2."+lang.extension, "w") as text_file:
         text_file.write(s)
