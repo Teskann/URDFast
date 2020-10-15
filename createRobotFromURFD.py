@@ -873,7 +873,10 @@ class Joint:
             self.limit_velocity = None
             
         self.T = self.__T()
-        self.Tinv = simplify(self.T**(-1))
+        
+        self.Tinv = (self.T**(-1)).simplify()
+        
+        self.Tinv = nsimplify(self.Tinv, tolerance=1e-10).evalf()
         
         # 8 - Checking if the joint is valid .................................
         
