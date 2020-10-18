@@ -12,6 +12,6 @@
   </qresource>
   <qresource prefix="3">
     <file>Nyxx_logo.png</file>
-    <file>Nyxx_logo_cyan.png</file>
+    <file>URDFast_logo_cyan.png</file>
   </qresource>
 </RCC>
