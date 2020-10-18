@@ -1583,7 +1583,7 @@ if __name__ == '__main__':
     
     lang = Language('julia')
     s = ''
-    s += generate_all_matrices(robot_obj, [], list_tm, language=lang)
+    s += generate_all_matrices(robot_obj, list_tm, list_tm, language=lang)
     origins = ['link_0', 'joint_0']
     destinations = ['link_1' ,'link_3']
     s += '\n\n' + generate_all_fk(robot_obj, origins, destinations, lang)
