@@ -56,6 +56,7 @@ You can also download this repository as ZIP file if you don't have git installe
 
 Once you have got the files, you can launch the program running `urdfast.py` file :
 ```bash
+cd ./URDFast
 python urdfast.py
 ```
 
