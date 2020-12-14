@@ -7,11 +7,10 @@
     <file>info.svg</file>
   </qresource>
   <qresource prefix="logo">
-    <file>icon.png</file>
     <file>icon_cyan.png</file>
   </qresource>
   <qresource prefix="3">
-    <file>Nyxx_logo.png</file>
+    <file>equation_polynomial.svg</file>
     <file>URDFast_logo_cyan.png</file>
   </qresource>
 </RCC>
