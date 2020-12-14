@@ -2,7 +2,7 @@
 
 ## Description
 *URDFast* is a Python program to generate code from [URDF XML files](http://wiki.ros.org/urdf/XML) to implement a controller for your favorite robot. It comes with a catchy GUI to make its use easier.
-This tool features code genetation for :
+This tool features code generation for :
 
 * Forward transition matrices
 * Backward transition matrices
@@ -60,7 +60,7 @@ cd ./URDFast
 python urdfast.py
 ```
 
-URDFast has been developped using **Windows 10** but as Python and PyQt5 are cross-platform, it should work on **Mac OS** and **Linux** distributions as well.
+URDFast has been developed using **Windows 10** but as Python and PyQt5 are cross-platform, it should work on **Mac OS** and **Linux** distributions as well.
 
 ### 4. Learn how to use it !
 
@@ -68,7 +68,7 @@ The software use is pretty straight-forward, but you should take a look at the [
 
 ### 5. Contribute ?
 
-If you like the project and you are a Python developper and/or fan of robotics, don't hesitate to contribute to it ! Check out the [documentation for developpement](./documentation/devdoc.md). Each function comes with its documentation so you can get into the project faster.
+If you like the project and you are a Python developer and/or fan of robotics, don't hesitate to contribute to it ! Check out the [documentation for developpement](./documentation/devdoc.md). Each function comes with its documentation so you can get into the project faster.
 
 Amazing features such as robot dynamics, torque control, control loops, C++ support are not supported yet, your help for this is welcome !
 
@@ -77,7 +77,7 @@ Amazing features such as robot dynamics, torque control, control loops, C++ supp
 ### Context
 
 I am an engineer student at Polytech Montpellier, France in Microelectronics & Automation.
-This project has been developped during my summer internship at the [LIRMM](http://www.lirmm.fr/lirmm_eng) (Laboratory of Computer Science, Robotics and Microelectronics of Montpellier) under the supervision of Philippe Fraisse and André Crosnier.
+This project has been developed during my summer internship at the [LIRMM](http://www.lirmm.fr/lirmm_eng) (Laboratory of Computer Science, Robotics and Microelectronics of Montpellier) under the supervision of Philippe Fraisse and André Crosnier.
 
 Of course, I intend to maintain this project and add new features to it in the future, even if my internship is over.
 
