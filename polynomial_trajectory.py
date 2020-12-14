@@ -1,11 +1,14 @@
 # -*- coding: utf-8 -*-
 """
 Trajectory Generation.
-All  the  function  in  this file are used to generate polynomial trajectories
+All  the  functions  in this file are used to generate polynomial trajectories
 starting from conditions on the different derivatives.
+
+This file doesn't implement functions to generate code fot trajectories.
+Refer to code_generator.generate_polynomial_trajectory() for generation.
 """
 
-from sympy import symbols, diff, simplify
+from sympy import symbols, diff, simplify, Symbol
 from sympy.solvers import solve, linsolve
 
 
@@ -62,6 +65,7 @@ def get_equations(conditions, variable):
 
     conditions : list of lists containing 3 elements
         [..., [derivative_order, time_value, equals], ...]
+
         derivative_order : must be an integer
             order  of  the derivative. If the time is your derivative variable
             and  the  function  you  want to create describes your position, 0
@@ -200,7 +204,8 @@ def poly_solve(eqns_list, unknowns):
         found_vars = []
 
         for w, eqn in enumerate(eqns):
-            print(w / len(eqns))
+            print("Trajectory generation - Finding solution: " +
+                  ("%.0f" % (100 * w / len(eqns))) + " %")
             variable = 0
             for var in unknowns:
                 if var in eqn.free_symbols and var not in found_vars:
@@ -211,11 +216,10 @@ def poly_solve(eqns_list, unknowns):
             sol[variable] = list(linsolve([eqn], [variable]))[0][0]
             solr[variable] = sol[variable]
             for i, eq in enumerate(eqns):
-                eqns[i] = eq.subs(sol).simplify()
+                eqns[i] = eq.subs(sol).simplify(rational=False)
             found_vars.append(variable)
 
         # Simplifying solution
-        print("Simplifying")
         # dct = [[len(solr[a].free_symbols) for a in solr],
         #        [a for a in solr]]
         dct = []
@@ -228,13 +232,16 @@ def poly_solve(eqns_list, unknowns):
         # dct = list(map(list, zip(*dct)))
         dct.sort(key=lambda x: x[0])
         for j, s in enumerate(dct):
-            print(j / len(dct))
+            print("Trajectory generation - Simplifying solution: " +
+                  "%.0f" % (100 * j / len(dct)) + " %")
             for i, sol_i in enumerate(solr):
                 try:
                     solr[sol_i] = solr[sol_i].subs(s[1], solr[s[1]]) \
-                        .simplify()
+                        .simplify(rational=False).factor().cancel() \
+                        .nsimplify(tolerance=1e-10).evalf()
                 except AttributeError:
                     pass
+        print("Done.")
         return solr
     else:
         return solve(eqns, unknowns)
@@ -336,7 +343,8 @@ def get_solution(equations, unknowns, derivatives):
 
     for i, _ in enumerate(derivative_sol):
         derivative_sol[i] = derivative_sol[i].factor().evalf() \
-            .collect(derivative_sol[i].free_symbols)
+            .collect(derivative_sol[i].free_symbols)\
+            .nsimplify(tolerance=1e-10).evalf()
 
     return derivative_sol
 
@@ -358,6 +366,7 @@ def verify_solution(conditions, solution, function_variable):
 
     conditions : list of lists containing 3 elements
         [..., [derivative_order, time_value, equals], ...]
+
         derivative_order : must be an integer
             order  of  the derivative. If the time is your derivative variable
             and  the  function  you  want to create describes your position, 0
@@ -404,10 +413,17 @@ def verify_solution(conditions, solution, function_variable):
 
     # Verifying conditions ...................................................
 
+    # A  bug  in  SymPy  is  not  rounding  float  values  if they are not
+    # multiplied  by  a  Symbol.  To  fix  this, we multiply T by a random
+    # Symbol, simplify and then divide by this Symbol.
+
+    debug_sym = Symbol('debug_symbol')
     for cond in conditions:
-        if simplify(solution[cond[0]].subs(t, cond[1]) - cond[2]). \
-                nsimplify(tolerance=1e-10) != 0:
-            print('Err :', cond, solution[cond[0]].subs(t, cond[1]) - cond[2],
+        if (debug_sym * simplify(solution[cond[0]].subs(function_variable,
+                                                       cond[1]) - cond[2]))\
+                .nsimplify(tolerance=1e-8).evalf() / debug_sym != 0:
+            print('Err :', cond, solution[cond[0]].subs(function_variable,
+                                                        cond[1]) - cond[2],
                   '\n\n')
             return False
 
@@ -420,8 +436,13 @@ def verify_solution(conditions, solution, function_variable):
 
     for i, der_plus_1 in enumerate(solution[1:]):
 
-        if (simplify(diff(der, function_variable) - der_plus_1))\
-                .nsimplify(tolerance=1e-10) != 0:
+        # Numerical errors become big starting from this order
+        if i > 4:
+            break
+
+        if (debug_sym * simplify(diff(der, function_variable) - der_plus_1)) \
+                .nsimplify(tolerance=1e-3).evalf() / debug_sym != 0:
+            print('Err :', i, simplify(diff(der, function_variable) - der_plus_1))
             return False
 
         der = der_plus_1
@@ -436,12 +457,12 @@ if __name__ == "__main__":
 
     t, t0, tf = sp.symbols("t t0 tf", reals=True)
     cond = [
-        [0, t0, 0],
-        [0, tf, 1],
-        [1, t0, 0],
-        [1, tf, 0],
-        [2, t0, 0],
-        [2, tf, 0],
+        [0, sp.Symbol("t0"), 0.0],
+        [0, sp.Symbol("tf"), 1.0],
+        [1, sp.Symbol("t0"), 0.0],
+        [1, sp.Symbol("tf"), 0.0],
+        [2, sp.Symbol("t0"), 0.0],
+        [2, sp.Symbol("tf"), 0.0],
     ]
     sym_vars, derivatives, equations = get_equations(cond, t)
     sol = get_solution(equations, sym_vars, derivatives)
