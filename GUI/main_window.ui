@@ -23,11 +23,14 @@
    </size>
   </property>
   <property name="windowTitle">
-   <string>URDFast - Code Generator from URDF</string>
+   <string notr="true">URDFast - Code Generator from URDF</string>
   </property>
   <property name="windowIcon">
    <iconset>
     <normaloff>Images/icon_cyan.png</normaloff>Images/icon_cyan.png</iconset>
+  </property>
+  <property name="locale">
+   <locale language="English" country="UnitedStates"/>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout_2">
@@ -58,162 +61,6 @@
       </property>
      </widget>
     </item>
-    <item row="3" column="2">
-     <widget class="QGroupBox" name="groupBox">
-      <property name="minimumSize">
-       <size>
-        <width>300</width>
-        <height>0</height>
-       </size>
-      </property>
-      <property name="maximumSize">
-       <size>
-        <width>16777215</width>
-        <height>16777215</height>
-       </size>
-      </property>
-      <property name="font">
-       <font>
-        <pointsize>11</pointsize>
-       </font>
-      </property>
-      <property name="title">
-       <string>Settings</string>
-      </property>
-      <layout class="QGridLayout" name="gridLayout_5">
-       <item row="2" column="0">
-        <widget class="QPushButton" name="pushButton_2">
-         <property name="font">
-          <font>
-           <pointsize>10</pointsize>
-          </font>
-         </property>
-         <property name="text">
-          <string>Apply</string>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="0">
-        <widget class="QTabWidget" name="tabWidget_settings">
-         <property name="font">
-          <font>
-           <pointsize>10</pointsize>
-          </font>
-         </property>
-         <property name="currentIndex">
-          <number>0</number>
-         </property>
-         <widget class="QWidget" name="tab_general">
-          <attribute name="title">
-           <string>General</string>
-          </attribute>
-          <layout class="QGridLayout" name="gridLayout_11">
-           <item row="0" column="0" colspan="2">
-            <widget class="QLabel" name="label_language">
-             <property name="font">
-              <font>
-               <pointsize>10</pointsize>
-              </font>
-             </property>
-             <property name="text">
-              <string>Language for code generation :</string>
-             </property>
-             <property name="alignment">
-              <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
-             </property>
-            </widget>
-           </item>
-           <item row="0" column="2">
-            <widget class="QComboBox" name="comboBox_language">
-             <property name="font">
-              <font>
-               <pointsize>10</pointsize>
-              </font>
-             </property>
-             <item>
-              <property name="text">
-               <string>Julia</string>
-              </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>Python</string>
-              </property>
-             </item>
-            </widget>
-           </item>
-           <item row="1" column="0">
-            <widget class="QLabel" name="label_fname">
-             <property name="text">
-              <string>Output File Name :</string>
-             </property>
-            </widget>
-           </item>
-           <item row="1" column="1" colspan="2">
-            <widget class="QLineEdit" name="lineEdit_fname"/>
-           </item>
-          </layout>
-         </widget>
-         <widget class="QWidget" name="tab_language">
-          <attribute name="title">
-           <string>Language Settings</string>
-          </attribute>
-          <layout class="QGridLayout" name="gridLayout_10">
-           <item row="0" column="0">
-            <widget class="QTabWidget" name="tabWidget">
-             <property name="font">
-              <font>
-               <pointsize>9</pointsize>
-              </font>
-             </property>
-             <property name="tabPosition">
-              <enum>QTabWidget::West</enum>
-             </property>
-             <property name="currentIndex">
-              <number>0</number>
-             </property>
-             <widget class="QWidget" name="tab_python">
-              <attribute name="title">
-               <string>Python</string>
-              </attribute>
-              <widget class="QLabel" name="label_python_max_line_length">
-               <property name="geometry">
-                <rect>
-                 <x>10</x>
-                 <y>10</y>
-                 <width>111</width>
-                 <height>21</height>
-                </rect>
-               </property>
-               <property name="text">
-                <string>Maximum line length :</string>
-               </property>
-              </widget>
-              <widget class="QSpinBox" name="spinBox_python_max_line_length">
-               <property name="geometry">
-                <rect>
-                 <x>130</x>
-                 <y>10</y>
-                 <width>91</width>
-                 <height>24</height>
-                </rect>
-               </property>
-              </widget>
-             </widget>
-             <widget class="QWidget" name="tab_julia">
-              <attribute name="title">
-               <string>Julia</string>
-              </attribute>
-             </widget>
-            </widget>
-           </item>
-          </layout>
-         </widget>
-        </widget>
-       </item>
-      </layout>
-     </widget>
-    </item>
     <item row="2" column="0" colspan="3">
      <spacer name="verticalSpacer_2">
       <property name="orientation">
@@ -229,6 +76,27 @@
        </size>
       </property>
      </spacer>
+    </item>
+    <item row="4" column="2">
+     <widget class="QPushButton" name="pushButton_generate">
+      <property name="minimumSize">
+       <size>
+        <width>0</width>
+        <height>60</height>
+       </size>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>14</pointsize>
+       </font>
+      </property>
+      <property name="cursor">
+       <cursorShape>PointingHandCursor</cursorShape>
+      </property>
+      <property name="text">
+       <string>GENERATE</string>
+      </property>
+     </widget>
     </item>
     <item row="5" column="0" colspan="3">
      <widget class="QProgressBar" name="progressBar">
@@ -253,7 +121,86 @@
        </font>
       </property>
       <property name="value">
-       <number>50</number>
+       <number>0</number>
+      </property>
+     </widget>
+    </item>
+    <item row="1" column="1" alignment="Qt::AlignHCenter|Qt::AlignVCenter">
+     <widget class="QPushButton" name="pushButton">
+      <property name="minimumSize">
+       <size>
+        <width>250</width>
+        <height>40</height>
+       </size>
+      </property>
+      <property name="maximumSize">
+       <size>
+        <width>250</width>
+        <height>16777215</height>
+       </size>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>13</pointsize>
+       </font>
+      </property>
+      <property name="cursor">
+       <cursorShape>PointingHandCursor</cursorShape>
+      </property>
+      <property name="text">
+       <string>OPEN URDF FILE</string>
+      </property>
+     </widget>
+    </item>
+    <item row="0" column="1">
+     <spacer name="verticalSpacer_3">
+      <property name="orientation">
+       <enum>Qt::Vertical</enum>
+      </property>
+      <property name="sizeType">
+       <enum>QSizePolicy::Fixed</enum>
+      </property>
+      <property name="sizeHint" stdset="0">
+       <size>
+        <width>20</width>
+        <height>10</height>
+       </size>
+      </property>
+     </spacer>
+    </item>
+    <item row="1" column="2" alignment="Qt::AlignRight|Qt::AlignVCenter">
+     <widget class="QLabel" name="label_github">
+      <property name="minimumSize">
+       <size>
+        <width>40</width>
+        <height>40</height>
+       </size>
+      </property>
+      <property name="maximumSize">
+       <size>
+        <width>40</width>
+        <height>40</height>
+       </size>
+      </property>
+      <property name="baseSize">
+       <size>
+        <width>41</width>
+        <height>41</height>
+       </size>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>40</pointsize>
+       </font>
+      </property>
+      <property name="cursor">
+       <cursorShape>PointingHandCursor</cursorShape>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">image: url(:/newPrefix/github_cyan.png);</string>
+      </property>
+      <property name="text">
+       <string/>
       </property>
      </widget>
     </item>
@@ -267,7 +214,7 @@
       </property>
       <property name="maximumSize">
        <size>
-        <width>16777215</width>
+        <width>550</width>
         <height>16777215</height>
        </size>
       </property>
@@ -480,7 +427,7 @@ p, li { white-space: pre-wrap; }
           </font>
          </property>
          <property name="currentIndex">
-          <number>4</number>
+          <number>0</number>
          </property>
          <widget class="QWidget" name="tab_tm">
           <attribute name="title">
@@ -1023,70 +970,7 @@ p, li { white-space: pre-wrap; }
            <item row="0" column="0" colspan="4">
             <widget class="QListWidget" name="listWidget_poly"/>
            </item>
-           <item row="1" column="0" colspan="2">
-            <widget class="QPushButton" name="pushButton_poly_new_traj">
-             <property name="minimumSize">
-              <size>
-               <width>0</width>
-               <height>24</height>
-              </size>
-             </property>
-             <property name="maximumSize">
-              <size>
-               <width>16777215</width>
-               <height>24</height>
-              </size>
-             </property>
-             <property name="cursor">
-              <cursorShape>PointingHandCursor</cursorShape>
-             </property>
-             <property name="text">
-              <string>New Trajectory</string>
-             </property>
-            </widget>
-           </item>
-           <item row="1" column="2" colspan="2">
-            <widget class="QPushButton" name="pushButton_poly_del">
-             <property name="minimumSize">
-              <size>
-               <width>0</width>
-               <height>24</height>
-              </size>
-             </property>
-             <property name="maximumSize">
-              <size>
-               <width>16777215</width>
-               <height>24</height>
-              </size>
-             </property>
-             <property name="cursor">
-              <cursorShape>PointingHandCursor</cursorShape>
-             </property>
-             <property name="text">
-              <string>Remove Selected</string>
-             </property>
-            </widget>
-           </item>
-           <item row="2" column="0" colspan="4">
-            <widget class="Line" name="line">
-             <property name="minimumSize">
-              <size>
-               <width>0</width>
-               <height>1</height>
-              </size>
-             </property>
-             <property name="maximumSize">
-              <size>
-               <width>16777215</width>
-               <height>1</height>
-              </size>
-             </property>
-             <property name="orientation">
-              <enum>Qt::Horizontal</enum>
-             </property>
-            </widget>
-           </item>
-           <item row="3" column="0">
+           <item row="2" column="0">
             <widget class="QLabel" name="label_poly_fname">
              <property name="minimumSize">
               <size>
@@ -1105,7 +989,7 @@ p, li { white-space: pre-wrap; }
              </property>
             </widget>
            </item>
-           <item row="3" column="1" colspan="3">
+           <item row="2" column="1" colspan="3">
             <widget class="QLineEdit" name="lineEdit_poly_fname">
              <property name="minimumSize">
               <size>
@@ -1118,6 +1002,25 @@ p, li { white-space: pre-wrap; }
                <width>16777215</width>
                <height>24</height>
               </size>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="0" colspan="4">
+            <widget class="Line" name="line">
+             <property name="minimumSize">
+              <size>
+               <width>0</width>
+               <height>1</height>
+              </size>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>1</height>
+              </size>
+             </property>
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
              </property>
             </widget>
            </item>
@@ -1167,18 +1070,18 @@ p, li { white-space: pre-wrap; }
              </column>
             </widget>
            </item>
-           <item row="5" column="0">
+           <item row="5" column="0" rowspan="2" colspan="2">
             <widget class="QLabel" name="label_poly_equation">
              <property name="minimumSize">
               <size>
-               <width>94</width>
-               <height>50</height>
+               <width>141</width>
+               <height>75</height>
               </size>
              </property>
              <property name="maximumSize">
               <size>
-               <width>94</width>
-               <height>50</height>
+               <width>141</width>
+               <height>75</height>
               </size>
              </property>
              <property name="text">
@@ -1192,40 +1095,18 @@ p, li { white-space: pre-wrap; }
              </property>
             </widget>
            </item>
-           <item row="5" column="1" colspan="2">
-            <widget class="QPushButton" name="pushButton_poly_new_condition">
-             <property name="minimumSize">
-              <size>
-               <width>0</width>
-               <height>50</height>
-              </size>
-             </property>
-             <property name="maximumSize">
-              <size>
-               <width>16777215</width>
-               <height>50</height>
-              </size>
-             </property>
-             <property name="cursor">
-              <cursorShape>PointingHandCursor</cursorShape>
-             </property>
-             <property name="text">
-              <string>New Condition</string>
-             </property>
-            </widget>
-           </item>
-           <item row="5" column="3">
+           <item row="6" column="2" colspan="2">
             <widget class="QPushButton" name="pushButton_poly_del_condition">
              <property name="minimumSize">
               <size>
                <width>0</width>
-               <height>50</height>
+               <height>35</height>
               </size>
              </property>
              <property name="maximumSize">
               <size>
                <width>16777215</width>
-               <height>50</height>
+               <height>35</height>
               </size>
              </property>
              <property name="cursor">
@@ -1236,6 +1117,72 @@ p, li { white-space: pre-wrap; }
              </property>
             </widget>
            </item>
+           <item row="1" column="0" colspan="2">
+            <widget class="QPushButton" name="pushButton_poly_new_traj">
+             <property name="minimumSize">
+              <size>
+               <width>0</width>
+               <height>30</height>
+              </size>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>30</height>
+              </size>
+             </property>
+             <property name="cursor">
+              <cursorShape>PointingHandCursor</cursorShape>
+             </property>
+             <property name="text">
+              <string>New Trajectory</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="2" colspan="2">
+            <widget class="QPushButton" name="pushButton_poly_del">
+             <property name="minimumSize">
+              <size>
+               <width>0</width>
+               <height>30</height>
+              </size>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>30</height>
+              </size>
+             </property>
+             <property name="cursor">
+              <cursorShape>PointingHandCursor</cursorShape>
+             </property>
+             <property name="text">
+              <string>Remove Selected</string>
+             </property>
+            </widget>
+           </item>
+           <item row="5" column="2" colspan="2">
+            <widget class="QPushButton" name="pushButton_poly_new_condition">
+             <property name="minimumSize">
+              <size>
+               <width>0</width>
+               <height>35</height>
+              </size>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>35</height>
+              </size>
+             </property>
+             <property name="cursor">
+              <cursorShape>PointingHandCursor</cursorShape>
+             </property>
+             <property name="text">
+              <string>New Condition</string>
+             </property>
+            </widget>
+           </item>
           </layout>
          </widget>
         </widget>
@@ -1243,105 +1190,161 @@ p, li { white-space: pre-wrap; }
       </layout>
      </widget>
     </item>
-    <item row="4" column="2">
-     <widget class="QPushButton" name="pushButton_generate">
+    <item row="3" column="2">
+     <widget class="QGroupBox" name="groupBox">
       <property name="minimumSize">
        <size>
-        <width>0</width>
-        <height>60</height>
-       </size>
-      </property>
-      <property name="font">
-       <font>
-        <pointsize>14</pointsize>
-       </font>
-      </property>
-      <property name="cursor">
-       <cursorShape>PointingHandCursor</cursorShape>
-      </property>
-      <property name="text">
-       <string>GENERATE</string>
-      </property>
-     </widget>
-    </item>
-    <item row="1" column="1" alignment="Qt::AlignHCenter|Qt::AlignVCenter">
-     <widget class="QPushButton" name="pushButton">
-      <property name="minimumSize">
-       <size>
-        <width>250</width>
-        <height>40</height>
+        <width>300</width>
+        <height>0</height>
        </size>
       </property>
       <property name="maximumSize">
        <size>
-        <width>250</width>
+        <width>400</width>
         <height>16777215</height>
        </size>
       </property>
       <property name="font">
        <font>
-        <pointsize>13</pointsize>
+        <pointsize>11</pointsize>
        </font>
       </property>
-      <property name="cursor">
-       <cursorShape>PointingHandCursor</cursorShape>
+      <property name="title">
+       <string>Settings</string>
       </property>
-      <property name="text">
-       <string>OPEN URDF FILE</string>
-      </property>
+      <layout class="QGridLayout" name="gridLayout_5">
+       <item row="2" column="0">
+        <widget class="QPushButton" name="pushButton_2">
+         <property name="font">
+          <font>
+           <pointsize>10</pointsize>
+          </font>
+         </property>
+         <property name="text">
+          <string>Apply</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="0">
+        <widget class="QTabWidget" name="tabWidget_settings">
+         <property name="font">
+          <font>
+           <pointsize>10</pointsize>
+          </font>
+         </property>
+         <property name="currentIndex">
+          <number>0</number>
+         </property>
+         <widget class="QWidget" name="tab_general">
+          <attribute name="title">
+           <string>General</string>
+          </attribute>
+          <layout class="QGridLayout" name="gridLayout_11">
+           <item row="0" column="0" colspan="2">
+            <widget class="QLabel" name="label_language">
+             <property name="font">
+              <font>
+               <pointsize>10</pointsize>
+              </font>
+             </property>
+             <property name="text">
+              <string>Language for code generation :</string>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="2">
+            <widget class="QComboBox" name="comboBox_language">
+             <property name="font">
+              <font>
+               <pointsize>10</pointsize>
+              </font>
+             </property>
+             <item>
+              <property name="text">
+               <string>Julia</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Python</string>
+              </property>
+             </item>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="label_fname">
+             <property name="text">
+              <string>Output File Name :</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1" colspan="2">
+            <widget class="QLineEdit" name="lineEdit_fname"/>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="tab_language">
+          <attribute name="title">
+           <string>Language Settings</string>
+          </attribute>
+          <layout class="QGridLayout" name="gridLayout_10">
+           <item row="0" column="0">
+            <widget class="QTabWidget" name="tabWidget">
+             <property name="font">
+              <font>
+               <pointsize>9</pointsize>
+              </font>
+             </property>
+             <property name="tabPosition">
+              <enum>QTabWidget::West</enum>
+             </property>
+             <property name="currentIndex">
+              <number>0</number>
+             </property>
+             <widget class="QWidget" name="tab_python">
+              <attribute name="title">
+               <string>Python</string>
+              </attribute>
+              <widget class="QLabel" name="label_python_max_line_length">
+               <property name="geometry">
+                <rect>
+                 <x>10</x>
+                 <y>10</y>
+                 <width>111</width>
+                 <height>21</height>
+                </rect>
+               </property>
+               <property name="text">
+                <string>Maximum line length :</string>
+               </property>
+              </widget>
+              <widget class="QSpinBox" name="spinBox_python_max_line_length">
+               <property name="geometry">
+                <rect>
+                 <x>130</x>
+                 <y>10</y>
+                 <width>91</width>
+                 <height>24</height>
+                </rect>
+               </property>
+              </widget>
+             </widget>
+             <widget class="QWidget" name="tab_julia">
+              <attribute name="title">
+               <string>Julia</string>
+              </attribute>
+             </widget>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </widget>
+       </item>
+      </layout>
      </widget>
-    </item>
-    <item row="1" column="2" alignment="Qt::AlignRight|Qt::AlignVCenter">
-     <widget class="QLabel" name="label_github">
-      <property name="minimumSize">
-       <size>
-        <width>40</width>
-        <height>40</height>
-       </size>
-      </property>
-      <property name="maximumSize">
-       <size>
-        <width>40</width>
-        <height>40</height>
-       </size>
-      </property>
-      <property name="baseSize">
-       <size>
-        <width>41</width>
-        <height>41</height>
-       </size>
-      </property>
-      <property name="font">
-       <font>
-        <pointsize>40</pointsize>
-       </font>
-      </property>
-      <property name="cursor">
-       <cursorShape>PointingHandCursor</cursorShape>
-      </property>
-      <property name="styleSheet">
-       <string notr="true">image: url(:/newPrefix/github_cyan.png);</string>
-      </property>
-      <property name="text">
-       <string/>
-      </property>
-     </widget>
-    </item>
-    <item row="0" column="1">
-     <spacer name="verticalSpacer_3">
-      <property name="orientation">
-       <enum>Qt::Vertical</enum>
-      </property>
-      <property name="sizeType">
-       <enum>QSizePolicy::Fixed</enum>
-      </property>
-      <property name="sizeHint" stdset="0">
-       <size>
-        <width>20</width>
-        <height>10</height>
-       </size>
-      </property>
-     </spacer>
     </item>
    </layout>
   </widget>
