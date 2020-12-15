@@ -8,11 +8,11 @@ Created on Fri Jul 17 18:20:27 2020
 import logging
 import sys
 
-from PyQt5 import QtWidgets, QtCore
+from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtCore import QUrl
-from PyQt5.QtGui import QDesktopServices
+from PyQt5.QtGui import QDesktopServices, QPalette
 from PyQt5.QtGui import QFontDatabase
-from PyQt5.QtWidgets import QFileDialog, QTreeWidgetItem
+from PyQt5.QtWidgets import QFileDialog, QTreeWidgetItem, QListWidgetItem
 
 sys.path.insert(1, '../')
 
@@ -32,6 +32,8 @@ ftm_list = []  # Forward transition matrices list
 btm_list = []  # Backward transition matrices list
 fk_list = []  # Forward Kinematics List
 jac_list = []  # Jacobian list
+polynomial_trajectories = []  # Polynomial trajectories list
+
 robot_obj = 0  # Robot Object
 
 settings = {"language": "Julia",
@@ -353,6 +355,262 @@ def del_fk_jac(list_widget, fk):
             del jac_list[index]
 
 
+# Add a polynomial trajectory ________________________________________________
+
+def new_polynomial_trajectory(ui):
+    """
+    Description
+    -----------
+
+    Create a new polynomial trajectory
+
+    Parameters
+    ----------
+
+    ui : main_window.Ui_MainWindow
+        GUI to update
+
+    Global Variables Used
+    ---------------------
+
+    polynomial_trajectories : list of dict
+        list of all the polynomial trajectories to generate.
+
+        Every item of this list must be a dict with the following structure :
+
+        {"name": str : Name of the trajectory,
+
+         "conditions" : list of list of 3 str :
+
+            [..., [k, t, x], ...]
+
+            k : str representing an integer
+                Order  of  the  derivative.  If  the  time  is your derivative
+                variable  and  the function you  want to create describes your
+                position,  0 corresponds to the position, 1 to the speed, 2 to
+                the acceleration, 3 to the jerk and so on.
+            t : str representing a float or a symbol
+                Time value on which you want your condition to be set
+            x : str representing a float or a symbol
+                Value  of the  function  for  the  given  time.  This can be a
+                symbolic variable
+        }
+
+    Returns
+    -------
+
+    None.
+
+    """
+
+    global polynomial_trajectories
+
+    # Finding a Name .........................................................
+
+    k = 0
+    while "r" + str(k) in [t["name"] for t in polynomial_trajectories]:
+        k += 1
+
+    trajectory = {"name": "r" + str(k),
+                  "conditions": []}
+
+    # Deselect everything ....................................................
+
+    ui.listWidget_poly.clearSelection()
+
+    # Adding to the list widget ..............................................
+
+    item = QListWidgetItem()
+    item.setText(trajectory["name"])
+    ui.listWidget_poly.addItem(item)
+    ui.lineEdit_poly_fname.setText("r" + str(k))
+    polynomial_trajectories.append(trajectory)
+    ui.listWidget_poly.setCurrentRow(ui.listWidget_poly.count() - 1)
+    ui.lineEdit_poly_fname.setStyleSheet("color: #efefef;")
+
+    if len(polynomial_trajectories) == 1:
+        ui.pushButton_poly_del.setEnabled(True)
+
+
+# Remove polynomial trajectory _______________________________________________
+
+def del_polynomial_trajectory(ui):
+    """
+    Description
+    -----------
+
+    Removes the selected polynomial trajectory
+
+    Parameters
+    ----------
+
+    ui : main_window.Ui_MainWindow
+        GUI to update
+
+    Global Variables Used
+    ---------------------
+
+    polynomial_trajectories : list of dict
+        list of all the polynomial trajectories to generate.
+
+        Every item of this list must be a dict with the following structure :
+
+        {"name": str : Name of the trajectory,
+
+         "conditions" : list of list of 3 str :
+
+            [..., [k, t, x], ...]
+
+            k : str representing an integer
+                Order  of  the  derivative.  If  the  time  is your derivative
+                variable  and  the function you  want to create describes your
+                position,  0 corresponds to the position, 1 to the speed, 2 to
+                the acceleration, 3 to the jerk and so on.
+            t : str representing a float or a symbol
+                Time value on which you want your condition to be set
+            x : str representing a float or a symbol
+                Value  of the  function  for  the  given  time.  This can be a
+                symbolic variable
+        }
+
+    Returns
+    -------
+
+    None.
+
+    """
+
+    global polynomial_trajectories
+
+    # Getting the selected items
+    selection = ui.listWidget_poly.selectedItems()
+
+    for item in selection:
+        index = ui.listWidget_poly.row(item)
+
+        ui.listWidget_poly.takeItem(index)
+        del polynomial_trajectories[index]
+
+    if not polynomial_trajectories:
+        ui.pushButton_poly_del.setEnabled(False)
+
+
+# Update trajectory name on text change ______________________________________
+
+def update_trajectory_name(ui):
+    """
+    Description
+    -----------
+
+    Update the trajectory name on editing name Line Edit.
+
+    Parameters
+    ----------
+
+    ui : main_window.Ui_MainWindow
+        GUI to update
+
+    Global Variables Used
+    ---------------------
+
+    polynomial_trajectories : list of dict
+        list of all the polynomial trajectories to generate.
+
+        Every item of this list must be a dict with the following structure :
+
+        {"name": str : Name of the trajectory,
+
+         "conditions" : list of list of 3 str :
+
+            [..., [k, t, x], ...]
+
+            k : str representing an integer
+                Order  of  the  derivative.  If  the  time  is your derivative
+                variable  and  the function you  want to create describes your
+                position,  0 corresponds to the position, 1 to the speed, 2 to
+                the acceleration, 3 to the jerk and so on.
+            t : str representing a float or a symbol
+                Time value on which you want your condition to be set
+            x : str representing a float or a symbol
+                Value  of the  function  for  the  given  time.  This can be a
+                symbolic variable
+        }
+
+    Returns
+    -------
+
+    None.
+
+    """
+
+    global polynomial_trajectories
+
+    selection = ui.listWidget_poly.selectedItems()
+
+    index = None
+    for item in selection:
+        index = ui.listWidget_poly.row(item)
+
+    if index is None:
+        return
+
+    content = ui.lineEdit_poly_fname.text()
+    original_content = content
+
+    # Avoiding non alphanumeric characters ...................................
+
+    i = 0
+    while i < len(content):
+        char = content[i]
+        # Avoiding whitespaces and -
+        if char in [" ", "-", ".", ",", ";"]:
+            content = content[:i] + "_" + content[i + 1:]
+            i += 1
+        elif not (char.isascii() and char.isalnum() or char == "_"):
+            content = content[:i] + content[i + 1:]
+        else:
+            i += 1
+
+    # Avoiding empty name ....................................................
+
+    if content == "":
+        k = 0
+        while "r" + str(k) in [t["name"] for t in polynomial_trajectories]:
+            k += 1
+        content = "r" + str(k)
+
+    # Avoiding name starting by a number .....................................
+
+    if content[0:1].isdigit():
+        content = "r" + content
+
+    # Avoiding duplicates ....................................................
+
+    k = 0
+    while content in [t["name"] for t in
+                      polynomial_trajectories[:index] +
+                      polynomial_trajectories[index+1:]]:
+        if k == 0:
+            content += '_0'
+        else:
+            content = '_'.join(content.split('_')[:-1]) + '_' + str(k)
+        k += 1
+
+    # Color text if the name is invalid ......................................
+
+    if content == original_content:
+        ui.lineEdit_poly_fname.setStyleSheet("color: #efefef;")
+    else:
+        ui.lineEdit_poly_fname.setStyleSheet("color: #ff2020;")
+
+    # Set content in the list ................................................
+
+    for item in selection:
+        index = ui.listWidget_poly.row(item)
+        item.setText(content)
+        polynomial_trajectories[index]["name"] = content
+
+
 # Update GUI State from Robot Object _________________________________________
 
 def init_gui_from_urdf(gui, robot):
@@ -404,9 +662,12 @@ def init_gui_from_urdf(gui, robot):
     p = '<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; ' + \
         'margin-right:0px; -qt-block-indent:0; text-indent:0px;">'
     header = '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" ' + \
-             '"http://www.w3.org/TR/REC-html40/strict.dtd">\n<html><head><meta' + \
-             'name="qrichtext" content="1" /><style type="text/css">\np, li { ' + \
-             'white-space: pre-wrap; }\n</style></head><body style=" font-family' + \
+             '"http://www.w3.org/TR/REC-html40/strict.dtd">\n<html><head' \
+             '><meta' + \
+             'name="qrichtext" content="1" /><style type="text/css">\np, ' \
+             'li { ' + \
+             'white-space: pre-wrap; }\n</style></head><body style=" ' \
+             'font-family' + \
              ':\'MS Shell Dlg 2\'; font-size:10pt; font-weight:400; ' + \
              'font-style:normal;">\n'
 
@@ -566,6 +827,16 @@ def init_gui_from_urdf(gui, robot):
     gui.checkBox_com.setChecked(True)
     gui.checkBox_com_jac.setChecked(True)
 
+    # Polynomial Trajectories ................................................
+
+    gui.pushButton_poly_del.setEnabled(True)
+    gui.pushButton_poly_new_traj.setEnabled(True)
+    gui.pushButton_poly_del_condition.setEnabled(False)
+    gui.pushButton_poly_new_condition.setEnabled(False)
+    gui.listWidget_poly.setEnabled(True)
+    gui.tableWidget_poly_conditions.setEnabled(False)
+    gui.lineEdit_poly_fname.setEnabled(True)
+
     gui.lineEdit_fname.setText(robot.name)
     update_settings(gui)
 
@@ -631,7 +902,7 @@ def update_settings(gui):
     --------------------
     
     settings : dict
-        Dictionnary of the settings
+        Dictionary of the settings
     
     """
 
@@ -710,6 +981,10 @@ def main():
     Application entry point
     """
 
+    import ctypes
+    myappid = u'teskann.urdfast.1.0'  # arbitrary string
+    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+
     global path
 
     logging.basicConfig(level=logging.DEBUG)
@@ -748,7 +1023,7 @@ def main():
                                             QDesktopServices.openUrl(
                                                 QUrl(link_str3)))
 
-    # Openning button ........................................................
+    # Opening button .........................................................
 
     ui.pushButton.clicked.connect(
         lambda: open_file_dialog(ui, ui.progressBar))
@@ -757,57 +1032,84 @@ def main():
 
     ui.listWidget_btm.selectionMode()
 
-    ui.pushButton_ftm_add.clicked.connect(lambda:
-                                          add_joint_to_list(ui.listWidget_ftm,
-                                                            ui.comboBox_ftm_joint,
-                                                            ui.pushButton_ftm_add,
-                                                            ui.pushButton_ftm_del,
-                                                            True))
+    ui.pushButton_ftm_add.clicked \
+        .connect(lambda:
+                 add_joint_to_list(ui.listWidget_ftm,
+                                   ui.comboBox_ftm_joint,
+                                   ui.pushButton_ftm_add,
+                                   ui.pushButton_ftm_del,
+                                   True))
 
-    ui.pushButton_ftm_del.clicked.connect(lambda:
-                                          del_joint_from_list(
-                                              ui.listWidget_ftm,
-                                              ui.comboBox_ftm_joint,
-                                              ui.pushButton_ftm_add,
-                                              ui.pushButton_ftm_del, True))
+    ui.pushButton_ftm_del.clicked \
+        .connect(lambda:
+                 del_joint_from_list(
+                     ui.listWidget_ftm,
+                     ui.comboBox_ftm_joint,
+                     ui.pushButton_ftm_add,
+                     ui.pushButton_ftm_del, True))
 
-    ui.pushButton_btm_add.clicked.connect(lambda:
-                                          add_joint_to_list(ui.listWidget_btm,
-                                                            ui.comboBox_btm_joint,
-                                                            ui.pushButton_btm_add,
-                                                            ui.pushButton_btm_del,
-                                                            True))
+    ui.pushButton_btm_add.clicked \
+        .connect(lambda:
+                 add_joint_to_list(ui.listWidget_btm,
+                                   ui.comboBox_btm_joint,
+                                   ui.pushButton_btm_add,
+                                   ui.pushButton_btm_del,
+                                   True))
 
-    ui.pushButton_btm_del.clicked.connect(lambda:
-                                          del_joint_from_list(
-                                              ui.listWidget_btm,
-                                              ui.comboBox_btm_joint,
-                                              ui.pushButton_btm_add,
-                                              ui.pushButton_btm_del, True))
+    ui.pushButton_btm_del.clicked \
+        .connect(lambda:
+                 del_joint_from_list(
+                     ui.listWidget_btm,
+                     ui.comboBox_btm_joint,
+                     ui.pushButton_btm_add,
+                     ui.pushButton_btm_del, True))
 
     # Forward Kinematics .....................................................
 
-    ui.pushButton_fk_add.clicked.connect(lambda:
-                                         add_fk_jac(ui.listWidget_fk,
-                                                    ui.comboBox_fk_origin,
-                                                    ui.comboBox_fk_destination,
-                                                    True))
+    ui.pushButton_fk_add.clicked \
+        .connect(lambda:
+                 add_fk_jac(ui.listWidget_fk,
+                            ui.comboBox_fk_origin,
+                            ui.comboBox_fk_destination,
+                            True))
 
-    ui.pushButton_fk_del.clicked.connect(lambda:
-                                         del_fk_jac(ui.listWidget_fk, True))
+    ui.pushButton_fk_del.clicked \
+        .connect(lambda:
+                 del_fk_jac(ui.listWidget_fk, True))
 
     # Jacobians ..............................................................
 
-    ui.pushButton_jac_add.clicked.connect(lambda:
-                                          add_fk_jac(ui.listWidget_jac,
-                                                     ui.comboBox_jac_origin,
-                                                     ui.comboBox_jac_destination,
-                                                     False))
-    ui.pushButton_jac_del.clicked.connect(lambda:
-                                          del_fk_jac(ui.listWidget_jac,
-                                                     False))
+    ui.pushButton_jac_add.clicked \
+        .connect(lambda:
+                 add_fk_jac(ui.listWidget_jac,
+                            ui.comboBox_jac_origin,
+                            ui.comboBox_jac_destination,
+                            False))
+    ui.pushButton_jac_del.clicked \
+        .connect(lambda:
+                 del_fk_jac(ui.listWidget_jac,
+                            False))
 
-    window.setWindowTitle("NYXX - Generate Code from URDF")
+    # Polynomial Trajectories ................................................
+
+    ui.pushButton_poly_del.setEnabled(False)
+    ui.pushButton_poly_new_traj.setEnabled(False)
+    ui.pushButton_poly_del_condition.setEnabled(False)
+    ui.pushButton_poly_new_condition.setEnabled(False)
+    ui.listWidget_poly.setEnabled(False)
+    ui.tableWidget_poly_conditions.setEnabled(False)
+    ui.lineEdit_poly_fname.setEnabled(False)
+
+    ui.pushButton_poly_new_traj.clicked \
+        .connect(lambda: new_polynomial_trajectory(ui))
+
+    ui.pushButton_poly_del.clicked \
+        .connect(lambda: del_polynomial_trajectory(ui))
+
+    ui.lineEdit_poly_fname.textChanged \
+        .connect(lambda: update_trajectory_name(ui))
+
+    # Font ...................................................................
 
     font_db = QFontDatabase()
     font_db.addApplicationFont("univers-condensed.ttf")
