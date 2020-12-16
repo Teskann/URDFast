@@ -12,7 +12,8 @@ from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtCore import QUrl
 from PyQt5.QtGui import QDesktopServices, QPalette
 from PyQt5.QtGui import QFontDatabase
-from PyQt5.QtWidgets import QFileDialog, QTreeWidgetItem, QListWidgetItem
+from PyQt5.QtWidgets import QFileDialog, QTreeWidgetItem, QListWidgetItem, \
+    QTableWidgetItem
 
 sys.path.insert(1, '../')
 
@@ -611,6 +612,365 @@ def update_trajectory_name(ui):
         polynomial_trajectories[index]["name"] = content
 
 
+# Display conditions on item selected ________________________________________
+
+def display_trajectory_conditions(ui):
+    """
+    Description
+    -----------
+
+    Display  the  trajectory  details  (conditions)  on the bottom part of the
+    "Polynomial  Trajectories"  tab.  The displayed trajectory is the selected
+    one.  This function is supposed to be called when the trajectory selection
+    is updated.
+
+    Parameters
+    ----------
+
+    ui : main_window.Ui_MainWindow
+        GUI to update
+
+    Global Variables Used
+    ---------------------
+
+    polynomial_trajectories : list of dict
+        list of all the polynomial trajectories to generate.
+
+        Every item of this list must be a dict with the following structure :
+
+        {"name": str : Name of the trajectory,
+
+         "conditions" : list of list of 3 str :
+
+            [..., [k, t, x], ...]
+
+            k : str representing an integer
+                Order  of  the  derivative.  If  the  time  is your derivative
+                variable  and  the function you  want to create describes your
+                position,  0 corresponds to the position, 1 to the speed, 2 to
+                the acceleration, 3 to the jerk and so on.
+            t : str representing a float or a symbol
+                Time value on which you want your condition to be set
+            x : str representing a float or a symbol
+                Value  of the  function  for  the  given  time.  This can be a
+                symbolic variable
+        }
+
+    Returns
+    -------
+
+    None.
+
+    """
+
+    # Clear table content ....................................................
+
+    ui.tableWidget_poly_conditions.setRowCount(0)
+
+    # Get the current selected item ..........................................
+
+    global polynomial_trajectories
+
+    selection = ui.listWidget_poly.selectedItems()
+
+    index = None
+    for item in selection:
+        index = ui.listWidget_poly.row(item)
+
+    # Nothing is selected => Disable the content
+    # Item selected => Enable the content
+    ui.lineEdit_poly_fname.setEnabled(index is not None)
+    ui.tableWidget_poly_conditions.setEnabled(index is not None)
+    ui.pushButton_poly_new_condition.setEnabled(index is not None)
+    ui.pushButton_poly_del_condition.setEnabled(index is not None)
+
+    if index is None:
+        return
+
+    ui.lineEdit_poly_fname.setText(polynomial_trajectories[index]["name"])
+
+    # Fill content with conditions ...........................................
+
+    for condition in polynomial_trajectories[index]["conditions"]:
+        pos = ui.tableWidget_poly_conditions.rowCount()
+        ui.tableWidget_poly_conditions.insertRow(pos)
+
+        ui.tableWidget_poly_conditions.setItem(pos, 0,
+                                               QTableWidgetItem(condition[0]))
+        ui.tableWidget_poly_conditions.setItem(pos, 1,
+                                               QTableWidgetItem(condition[1]))
+        ui.tableWidget_poly_conditions.setItem(pos, 2,
+                                               QTableWidgetItem(condition[2]))
+
+
+# Add a condition to the selected polynomial trajectory ______________________
+
+def new_condition_polynomial_trajectory(ui):
+    """
+    Description
+    -----------
+
+    Add a condition to the polynomial trajectory. This basically adds a row to
+    the table with default conditions (k = 0 ; t = 0 ; x = 0).
+
+    Parameters
+    ----------
+
+    ui : main_window.Ui_MainWindow
+        GUI to update
+
+    Global Variables Used
+    ---------------------
+
+    polynomial_trajectories : list of dict
+        list of all the polynomial trajectories to generate.
+
+        Every item of this list must be a dict with the following structure :
+
+        {"name": str : Name of the trajectory,
+
+         "conditions" : list of list of 3 str :
+
+            [..., [k, t, x], ...]
+
+            k : str representing an integer
+                Order  of  the  derivative.  If  the  time  is your derivative
+                variable  and  the function you  want to create describes your
+                position,  0 corresponds to the position, 1 to the speed, 2 to
+                the acceleration, 3 to the jerk and so on.
+            t : str representing a float or a symbol
+                Time value on which you want your condition to be set
+            x : str representing a float or a symbol
+                Value  of the  function  for  the  given  time.  This can be a
+                symbolic variable
+        }
+
+    Returns
+    -------
+
+    None.
+
+    """
+
+    # Add the row ............................................................
+
+    pos = ui.tableWidget_poly_conditions.rowCount()
+    ui.tableWidget_poly_conditions.insertRow(pos)
+
+    ui.tableWidget_poly_conditions.setItem(pos, 0, QTableWidgetItem("0"))
+    ui.tableWidget_poly_conditions.setItem(pos, 1, QTableWidgetItem("0"))
+    ui.tableWidget_poly_conditions.setItem(pos, 2, QTableWidgetItem("0"))
+
+    # Save to global variable ................................................
+
+    global polynomial_trajectories
+
+    selection = ui.listWidget_poly.selectedItems()
+
+    index = None
+    for item in selection:
+        index = ui.listWidget_poly.row(item)
+    if index is None:
+        return
+
+    polynomial_trajectories[index]["conditions"].append(["0", "0", "0"])
+
+
+# Delete polynomial trajectory condition(s) __________________________________
+
+def delete_polynomial_trajectory_condition(ui):
+    """
+    Description
+    -----------
+
+    Delete all the conditions (rows) that have at least one cell selected.
+
+    Parameters
+    ----------
+
+    ui : main_window.Ui_MainWindow
+        GUI to update
+
+    Global Variables Used
+    ---------------------
+
+    polynomial_trajectories : list of dict
+        list of all the polynomial trajectories to generate.
+
+        Every item of this list must be a dict with the following structure :
+
+        {"name": str : Name of the trajectory,
+
+         "conditions" : list of list of 3 str :
+
+            [..., [k, t, x], ...]
+
+            k : str representing an integer
+                Order  of  the  derivative.  If  the  time  is your derivative
+                variable  and  the function you  want to create describes your
+                position,  0 corresponds to the position, 1 to the speed, 2 to
+                the acceleration, 3 to the jerk and so on.
+            t : str representing a float or a symbol
+                Time value on which you want your condition to be set
+            x : str representing a float or a symbol
+                Value  of the  function  for  the  given  time.  This can be a
+                symbolic variable
+        }
+
+    Returns
+    -------
+
+    None.
+
+    """
+
+    # Get selected list item .................................................
+
+    global polynomial_trajectories
+
+    selection = ui.listWidget_poly.selectedItems()
+
+    index_list = None
+    for item in selection:
+        index_list = ui.listWidget_poly.row(item)
+    if index_list is None:
+        return
+
+    # Find rows to delete ....................................................
+
+    rows = []
+    for item in ui.tableWidget_poly_conditions.selectedIndexes():
+        row = item.row()
+        if row not in rows:
+            rows.append(row)
+
+    # Delete the rows ........................................................
+
+    rows.sort(reverse=True)
+    for row in rows:
+        polynomial_trajectories[index_list]["conditions"].pop(row)
+        ui.tableWidget_poly_conditions.removeRow(row)
+
+
+# Edit polynomial trajectory condition _______________________________________
+
+def edit_polynomial_trajectory_condition(ui):
+    """
+    Description
+    -----------
+
+    Save the edited content from the table to polynomial_trajectories. This is
+    supposed to be called when the table is edited.
+
+    Parameters
+    ----------
+
+    ui : main_window.Ui_MainWindow
+        GUI to update
+
+    Global Variables Used
+    ---------------------
+
+    polynomial_trajectories : list of dict
+        list of all the polynomial trajectories to generate.
+
+        Every item of this list must be a dict with the following structure :
+
+        {"name": str : Name of the trajectory,
+
+         "conditions" : list of list of 3 str :
+
+            [..., [k, t, x], ...]
+
+            k : str representing an integer
+                Order  of  the  derivative.  If  the  time  is your derivative
+                variable  and  the function you  want to create describes your
+                position,  0 corresponds to the position, 1 to the speed, 2 to
+                the acceleration, 3 to the jerk and so on.
+            t : str representing a float or a symbol
+                Time value on which you want your condition to be set
+            x : str representing a float or a symbol
+                Value  of the  function  for  the  given  time.  This can be a
+                symbolic variable
+        }
+
+    Returns
+    -------
+
+    None.
+
+    """
+
+    if ui.tableWidget_poly_conditions.currentItem() is None:
+        return
+
+    # Get selected list item .................................................
+
+    global polynomial_trajectories
+
+    selection = ui.listWidget_poly.selectedItems()
+
+    index_list = None
+    for item in selection:
+        index_list = ui.listWidget_poly.row(item)
+    if index_list is None:
+        return
+
+    # Find the cell to edit ..................................................
+
+    row = ui.tableWidget_poly_conditions.currentItem().row()
+    col = ui.tableWidget_poly_conditions.currentItem().column()
+
+    content = ui.tableWidget_poly_conditions.currentItem().text()
+
+    # Check if the number is correct .........................................
+
+    content = content.replace(",", ".")
+
+    try:
+        float(content)
+
+    # It's a symbolic variable
+    except ValueError:
+
+        # Avoiding non alphanumeric characters ...............................
+
+        i = 0
+        while i < len(content):
+            char = content[i]
+            # Avoiding whitespaces and -
+            if char in [" ", "-", ",", ";"]:
+                content = content[:i] + "_" + content[i + 1:]
+                i += 1
+            elif not (char.isascii() and char.isalnum() or char == "_"):
+                content = content[:i] + content[i + 1:]
+            else:
+                i += 1
+
+        # Avoiding name starting by a number .................................
+
+        if content[0:1].isdigit():
+            letters = ["k", "t", "x"]
+            content = letters[col] + content
+
+    if col == 0:
+        try:
+            int(content)
+            if int(content) > 0:
+                content = str(int(content))
+            else:
+                content = "0"
+        except ValueError:
+            content = "0"
+
+    ui.tableWidget_poly_conditions.currentItem().setText(content)
+
+    if content == "":
+        content = "0"
+
+    polynomial_trajectories[index_list]["conditions"][row][col] = content
+
+
 # Update GUI State from Robot Object _________________________________________
 
 def init_gui_from_urdf(gui, robot):
@@ -674,7 +1034,7 @@ def init_gui_from_urdf(gui, robot):
     html = header + p + "<b>Robot Name</b> : " + f"{robot.name}</p><br/>\n"
     html += p + "<b>Number of Joints</b> : " + f"{robot.njoints()}</p><br/>\n"
     html += p + "<b>Number of Links</b> : " + f"{robot.nlinks()}</p><br/>\n"
-    mass = 0;
+    mass = 0
     for link in robot.links:
         mass += link.mass
     html += p + "<b>Mass</b> : " + '%.3f' % mass + " kg</p>"
@@ -1108,6 +1468,18 @@ def main():
 
     ui.lineEdit_poly_fname.textChanged \
         .connect(lambda: update_trajectory_name(ui))
+
+    ui.listWidget_poly.itemSelectionChanged \
+        .connect(lambda: display_trajectory_conditions(ui))
+
+    ui.pushButton_poly_new_condition \
+        .clicked.connect(lambda: new_condition_polynomial_trajectory(ui))
+
+    ui.pushButton_poly_del_condition \
+        .clicked.connect(lambda: delete_polynomial_trajectory_condition(ui))
+
+    ui.tableWidget_poly_conditions\
+        .itemChanged.connect(lambda: edit_polynomial_trajectory_condition(ui))
 
     # Font ...................................................................
 
