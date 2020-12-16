@@ -4,7 +4,7 @@ Trajectory Generation.
 All  the  functions  in this file are used to generate polynomial trajectories
 starting from conditions on the different derivatives.
 
-This file doesn't implement functions to generate code fot trajectories.
+This file doesn't implement functions to generate code for trajectories.
 Refer to code_generator.generate_polynomial_trajectory() for generation.
 """
 
