@@ -1497,12 +1497,22 @@ def generate_polynomial_trajectory(conditions, function_name, language):
 
     """
 
+    conditions_ = [condition.copy() for condition in conditions]
+
+    # If conditions are empty ................................................
+
+    if not conditions_:
+        return language.comment_line + " No conditions have been given for " \
+                                       "the trajectory \"" + \
+               function_name + \
+               "\", so nothing has been generated."
+
     # Conditions -> String for documentation .................................
 
-    conditions.sort(key=lambda x: int(x[0]))
+    conditions_.sort(key=lambda x: int(x[0]))
 
     conditions_str = "The followed conditions are :"
-    for condition in conditions:
+    for condition in conditions_:
         conditions_str += "\n    - " + ("d" + ("^" + condition[0] if
                                                int(condition[0]) > 1
                                                else "") + '_' if
@@ -1545,25 +1555,25 @@ def generate_polynomial_trajectory(conditions, function_name, language):
             return Symbol(string, real=True)
 
     symbolic_variables = []
-    for condition in conditions:
+    for condition in conditions_:
         condition[0] = int(condition[0])
         condition[1] = str_to_sym_or_float(condition[1])  # time_value
         condition[2] = str_to_sym_or_float(condition[2])  # equals
 
     # Conditions -> Polynomial ...............................................
 
-    sym_vars, derivatives, equations = get_equations(conditions,
+    sym_vars, derivatives, equations = get_equations(conditions_,
                                                      Symbol('t'))
     solution = get_solution(equations, sym_vars, derivatives)
 
     # Verifying solution
-    if not verify_solution(conditions, solution, Symbol('t')):
+    if not verify_solution(conditions_, solution, Symbol('t')):
         raise ArithmeticError('The conditions you gave for trajectory '
                               "generation can not be followed.")
 
     # Polynomials -> Code ....................................................
 
-    code = '\n\n' + language.title("Polynomial Trajectories", 0) + '\n\n'
+    code = language.title("Trajectory " + function_name, 1) + '\n\n'
     for i, polynomial in enumerate(solution):
         fname = "d" + str(i) + "_" + function_name
         docstring = "Trajectory polynomial. This function returns the " + \
@@ -1577,7 +1587,7 @@ def generate_polynomial_trajectory(conditions, function_name, language):
                     "conditions. " + conditions_str + "\n\nBE CAREFUL : " + \
                     "This function does not take into account the " + \
                     "physical limits of the robot (maximum velocities, " + \
-                    "accelerations, positions ...).\n"
+                    "accelerations, positions ...)."
 
         parameters = []
         for param in polynomial.free_symbols:
@@ -1594,10 +1604,77 @@ def generate_polynomial_trajectory(conditions, function_name, language):
     return code
 
 
+# Generate all the polynomial trajectories ___________________________________
+
+def generate_all_polynomial_trajectories(trajectories, language):
+    """
+    Description
+    -----------
+
+    Generates  the  code for all the polynomial trajectories. For more details
+    on how it works, check generate_polynomial_trajectory() (in this file).
+
+    Parameters
+    ----------
+
+    trajectories : list of dict
+        list of all the polynomial trajectories to generate.
+
+        Every item of this list must be a dict with the following structure :
+
+        {"name": str : Name of the trajectory,
+
+         "conditions" : list of list of 3 str :
+
+            [..., [k, t, x], ...]
+
+            k : str representing an integer
+                Order  of  the  derivative.  If  the  time  is your derivative
+                variable  and  the function you  want to create describes your
+                position,  0 corresponds to the position, 1 to the speed, 2 to
+                the acceleration, 3 to the jerk and so on.
+            t : str representing a float or a symbol
+                Time value on which you want your condition to be set
+            x : str representing a float or a symbol
+                Value  of the  function  for  the  given  time.  This can be a
+                symbolic variable
+        }
+
+    language : Language.Language
+        Language of the generated code
+
+    Returns
+    -------
+
+    code : str
+        Code containing all the functions for each trajectory.
+
+        The generated code will be optimized automatically.
+
+        The  name  of  the functions are d<k>_<function_name> where <k> is the
+        derivative  order  and  <function_name>  is the function name given as
+        parameter.
+
+        For example, if your function name is "poly_1", the generated function
+        for the 2nd derivative (acceleration) will be called "d2_poly_1()".
+        The 0th derivative (position) will give "d0_poly_1()".
+
+    """
+
+    code = "\n\n" + language.title("Polynomial Trajectories", 0) + "\n\n"
+
+    for trajectory in trajectories:
+        code += generate_polynomial_trajectory(trajectory["conditions"],
+                                               trajectory["name"],
+                                               language)
+
+    return code
+
+
 # Generate Everything ________________________________________________________
 
 def generate_everything(robot, list_ftm, list_btm, list_fk, list_jac, com,
-                        com_jac, language, filename):
+                        com_jac, polynomial_trajectories, language, filename):
     """
     Description
     -----------
@@ -1622,7 +1699,7 @@ def generate_everything(robot, list_ftm, list_btm, list_fk, list_jac, com,
             
             Example : list_ftm=['joint_3', 'joint_2']
 
-    list_ftm : list of str
+    list_btm : list of str
         List of all the backward transition matrices to generate
         Every element is a string formatted like the nodes
         names of robot.tree :
@@ -1670,6 +1747,29 @@ def generate_everything(robot, list_ftm, list_btm, list_fk, list_jac, com,
     com_jac : bool
         Set  this parameter to True if you want to generate the Center of Mass
         Jacobian.
+
+    polynomial_trajectories : list of dict
+        list of all the polynomial trajectories to generate.
+
+        Every item of this list must be a dict with the following structure :
+
+        {"name": str : Name of the trajectory,
+
+         "conditions" : list of list of 3 str :
+
+            [..., [k, t, x], ...]
+
+            k : str representing an integer
+                Order  of  the  derivative.  If  the  time  is your derivative
+                variable  and  the function you  want to create describes your
+                position,  0 corresponds to the position, 1 to the speed, 2 to
+                the acceleration, 3 to the jerk and so on.
+            t : str representing a float or a symbol
+                Time value on which you want your condition to be set
+            x : str representing a float or a symbol
+                Value  of the  function  for  the  given  time.  This can be a
+                symbolic variable
+        }
     
     language : Language.Language
         Language of the generated code
@@ -1684,22 +1784,26 @@ def generate_everything(robot, list_ftm, list_btm, list_fk, list_jac, com,
 
     """
 
-    # Openning the file in write mode
+    # Opening the file in write mode
 
     with open(filename + '.' + language.extension, 'w') as f:
         header = "The code in file has been generated by URDFast Code " + \
                  "Generator on " + datetime.now().strftime(
-            "%m/%d/%Y, %H:%M:%S") + \
-                 ". Consider testing this code before using it as errors remain " + \
-                 "possible. For more details, check out the github repository " + \
+                 "%m/%d/%Y, %H:%M:%S") + \
+                 ". Consider testing this code before using it as errors " \
+                 "remain " + \
+                 "possible. For more details, check out the github " \
+                 "repository " + \
                  "of this projets at https://github.com/Teskann/URDFast."
 
-        code = language.comment_par_beg + '\n\n' + language.justify(header) + \
-               '\n\n' + language.comment_par_end + '\n\n' + language.header + '\n'
+        code = language.comment_par_beg + '\n\n' + \
+               language.justify(header) + \
+               '\n\n' + language.comment_par_end + '\n\n' + \
+               language.header + '\n'
 
         code += generate_all_matrices(robot, list_ftm, list_btm, language)
 
-        if list_fk != []:
+        if list_fk:
             code += '\n\n'
             list_origin = []
             list_dest = []
@@ -1710,7 +1814,7 @@ def generate_everything(robot, list_ftm, list_btm, list_fk, list_jac, com,
 
             code += generate_all_fk(robot, list_origin, list_dest, language)
 
-        if list_jac != []:
+        if list_jac:
             code += '\n\n'
             list_origin = []
             list_dest = []
@@ -1729,6 +1833,11 @@ def generate_everything(robot, list_ftm, list_btm, list_fk, list_jac, com,
             code += '\n\n'
             code += generate_com_jacobian(robot, language)
 
+        if polynomial_trajectories:
+            code += \
+                generate_all_polynomial_trajectories(polynomial_trajectories,
+                                                     language)
+
         code += '\n'
 
         f.write(code)
@@ -1741,7 +1850,6 @@ if __name__ == '__main__':
     urdf_obj = URDF("./Examples/example_1.urdf")
     robot_obj = Robot(urdf_obj)
     print(robot_obj)
-    robot_obj.joints[0].T
 
     list_tm = ['joint_0', 'joint_1', 'joint_2']
 

@@ -1330,6 +1330,7 @@ def generate(gui):
 
     generate_everything(robot_obj, ftm, btm,
                         fk, jac, com, comjac,
+                        polynomial_trajectories,
                         language,
                         path + '../generated/' + settings["filename"])
 
@@ -1422,7 +1423,7 @@ def main():
                      ui.listWidget_btm,
                      ui.comboBox_btm_joint,
                      ui.pushButton_btm_add,
-                     ui.pushButton_btm_del, True))
+                     ui.pushButton_btm_del, False))
 
     # Forward Kinematics .....................................................
 
