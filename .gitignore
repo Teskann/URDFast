@@ -9,3 +9,5 @@
 /__pycache__/
 /Output*
 /GUI/__pycache__/
+/generated/*.jl
+/generated/*.py
