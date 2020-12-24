@@ -64,7 +64,7 @@ class Link:
             Default : 0 kg
 
         inertia : 3 x 3 numpy.ndarray
-            Inertia matrix of the link.  This matrix is symetric.  Corresponds
+            Inertia matrix of the link.  This matrix is symmetric.  Corresponds
             to  the  "inertia"  field of the "inertial" field of a link in the
             URDF XML format.
 
@@ -268,13 +268,13 @@ class Link:
             self.inertia[0][0] = urdfObjectLink['inertial']['inertia']['ixx'] \
                 [0]
 
-            # Ixy & Iyx (symetric)
+            # Ixy & Iyx (symmetric)
             self.inertia[1][0] = urdfObjectLink['inertial']['inertia']['ixy'] \
                 [0]
             self.inertia[0][1] = urdfObjectLink['inertial']['inertia']['ixy'] \
                 [0]
 
-            # Ixz & Izx (symetric)
+            # Ixz & Izx (symmetric)
             self.inertia[2][0] = urdfObjectLink['inertial']['inertia']['ixz'] \
                 [0]
             self.inertia[0][2] = urdfObjectLink['inertial']['inertia']['ixz'] \
@@ -284,7 +284,7 @@ class Link:
             self.inertia[1][1] = urdfObjectLink['inertial']['inertia']['iyy'] \
                 [0]
 
-            # Iyz & Izy (symetric)
+            # Iyz & Izy (symmetric)
             self.inertia[1][2] = urdfObjectLink['inertial']['inertia']['iyz'] \
                 [0]
             self.inertia[2][1] = urdfObjectLink['inertial']['inertia']['iyz'] \
@@ -332,7 +332,7 @@ class Link:
             - A not-None name
             - A 3 x 1 numpy.ndarray com
             - A positive or null mass
-            - A 3 x 3 symetric numpy.ndarray inertia
+            - A 3 x 3 symmetric numpy.ndarray inertia
         This  function  raises  an exception if any of these statements is not
         true.
 
@@ -391,7 +391,7 @@ class Link:
                              f"currently {self.inertia.shape}")
 
         if not np.allclose(self.inertia, self.inertia.T):
-            raise ValueError("Link inertia must be symetric")
+            raise ValueError("Link inertia must be symmetric")
 
         return True
 
