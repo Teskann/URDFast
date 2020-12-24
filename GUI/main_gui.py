@@ -18,7 +18,7 @@ from PyQt5.QtWidgets import QFileDialog, QTreeWidgetItem, QListWidgetItem, \
 sys.path.insert(1, '../')
 
 import URDF
-import create_robot_from_urdf as cr
+import robots as cr
 
 from code_generator import generate_everything
 from Language import Language
@@ -81,7 +81,7 @@ def add_joint_to_list(list_widget, combo_box, add_btn, del_btn, forward):
     btm_list : list of string
         list of all the joints to generate the code
     
-    robot_obj : create_robot_from_urdf.Robot
+    robot_obj : robots.Robot
         Robot Object
     
     Returns
@@ -170,7 +170,7 @@ def del_joint_from_list(list_widget, combo_box, add_btn, del_btn, forward):
     btm_list : list of string
         list of all the joints to generate the code
     
-    robot_obj : create_robot_from_urdf.Robot
+    robot_obj : robots.Robot
         Robot Object
     
     Returns
@@ -248,7 +248,7 @@ def add_fk_jac(list_widget, combo_box_o, combo_box_d, fk):
     jac_list : list of string
         list of all the joints to generate the code
     
-    robot_obj : create_robot_from_urdf.Robot
+    robot_obj : robots.Robot
         Robot Object
     
     Returns
@@ -327,7 +327,7 @@ def del_fk_jac(list_widget, fk):
     jac_list : list of string
         list of all the joints to generate the code
     
-    robot_obj : create_robot_from_urdf.Robot
+    robot_obj : robots.Robot
         Robot Object
     
     Returns
@@ -1224,7 +1224,7 @@ def open_file_dialog(gui, progress_bar):
     Returns
     -------
     
-    create_robot_from_urdf.Robot
+    robots.Robot
         Robot object of the opened file
 
     """
@@ -1287,7 +1287,7 @@ def generate(gui):
     Global Variables Used
     ---------------------
     
-    robot_obj : create_robot_from_urdf.Robot
+    robot_obj : robots.Robot
         Robot object
     
     ftm_list : list of string
