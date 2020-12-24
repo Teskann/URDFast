@@ -188,6 +188,8 @@ Please use only ASCII characters in your file.
 
 ## Examples of Valid Files
 
+Example 1 :
+
 ```csv
 TransZ..d, RotZ..theta, TransX..r, RotX..alpha
 
@@ -198,10 +200,12 @@ L2,   0,    theta2, 0,   1.57079633
 L3,   1.04, theta3, 0,   0
 ```
 
+Example 2 :
+
 ```csv
 RotX..alpha, TransX..d, RotZ..theta, TransZ..r
 
-name, alpha,       d, theta,  r,      pmin,     pmax,    vmax,         com
+name, alpha,               d, theta,  r,      pmin,     pmax,    vmax,         com
 --------------------------------------------------------------------------------------------------------------
 A1,   0,                   0, theta1, 0.3105, -2.96706, 2.96706, 1.9634954,    0.001340;  0.02622;   -0.087777
 A2,   1.5707963267948966,  0, theta2, 0,      -2.0944,  2.0944,  1.9634954,    0.001340;  0.087777;  0.02622
@@ -211,3 +215,16 @@ A4,   1.5707963267948966,  0, theta5, 0.39,   -2.96706, 2.96706, 3.1415926535, �
 A5,   1.5707963267948966,  0, theta6, 0,      -2.0944,  2.0944,  1.9634954,    −0.000259; −0.005328; 0.005956
 A6,   -1.5707963267948966, 0, theta7, 0.078,  -2.96706, 2.96706, 1.9634954,    0.0;       0.0;       0.063
 ```
+## Correspondence with URDF
+
+For every row (line starting from the 5th) you can give a degree of freedom.
+The nature of this degree of freedom determines the joint type. Here is the
+correspondence with URDF joint types :
+
+- If your DoF is set for `alpha` or `theta` and you set `pmin` and `pmax` headers :
+  revolute joint
+- If your Dof is set for `alpha` or `theta` and you didn't give any value for `pmin` and 
+  `pmax` : continuous joint
+- If your DoF is set for `r` or `d` **and** you set `pmin` and `pmax`
+  headers : prismatic joint
+- No DoF : fixed joint
