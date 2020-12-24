@@ -6,7 +6,7 @@ Created on Fri Jun 19 21:44:37 2020
 """
 
 from URDF import URDF
-from create_robot_from_urdf import Robot
+from robots import Robot
 from sympy import pretty, Symbol
 from Language import Language
 from datetime import datetime
@@ -138,7 +138,7 @@ def generate_all_matrices(robot, list_ftm, list_btm,
     Parameters
     ----------
     
-    robot : create_robot_from_urdf.Robot
+    robot : robots.Robot
         Robot you want to generate the matrices from
     
     list_ftm : list of str
@@ -152,7 +152,7 @@ def generate_all_matrices(robot, list_ftm, list_btm,
             
             Example : list_ftm=['joint_3', 'joint_2']
 
-    list_ftm : list of str
+    list_btm : list of str
         List of all the backward transition matrices to generate
         Every element is a string formatted like the nodes
         names of robot.tree :
@@ -178,7 +178,7 @@ def generate_all_matrices(robot, list_ftm, list_btm,
     code = ''
 
     if list_ftm:
-        code += language.title('FORWARD TRANSISION MATRICES', 0)
+        code += language.title('FORWARD TRANSITION MATRICES', 0)
 
         code += '\n\n'
 
@@ -208,7 +208,7 @@ def generate_all_matrices(robot, list_ftm, list_btm,
         code += joint_str + '\n\n'
 
     if list_btm:
-        code += language.title('BACKWARD TRANSISION MATRICES', 0)
+        code += language.title('BACKWARD TRANSITION MATRICES', 0)
 
         code += '\n\n'
 
@@ -258,7 +258,7 @@ def generate_fk(robot, origin, destination, language=Language('python')):
     Parameters
     ----------
     
-    robot : create_robot_from_urdf.Robot
+    robot : robots.Robot
         Robot you want to generate the matrices from
     
     origin : str
@@ -319,9 +319,7 @@ def generate_fk(robot, origin, destination, language=Language('python')):
         params_tmp = []
         for symbol in all_sym:
 
-            param = {}
-            param['name'] = str(symbol)
-            param['type'] = 'double'
+            param = {'name': str(symbol), 'type': 'double'}
             category = param['name'].split('_')[0]
             descr = ''
             if category == 'd':
@@ -496,7 +494,7 @@ def generate_all_fk(robot, list_origin, list_dest,
     Parameters
     ----------
     
-    robot : create_robot_from_urdf.Robot
+    robot : robots.Robot
         Robot you want to generate the matrices from
     
     list_origin : list of str
@@ -564,7 +562,7 @@ def generate_jacobian(robot, origin, destination,
     Parameters
     ----------
     
-    robot : create_robot_from_urdf.Robot
+    robot : robots.Robot
         Robot you want to generate the matrices from
     
     origin : str
@@ -901,7 +899,7 @@ def generate_all_jac(robot, list_origin, list_dest,
     Parameters
     ----------
     
-    robot : create_robot_from_urdf.Robot
+    robot : robots.Robot
         Robot you want to generate the matrices from
     
     list_origin : list of str
@@ -960,7 +958,7 @@ def generate_com(robot, language=Language('python')):
 
     Parameters
     ----------
-    robot : create_robot_from_urdf.Robot
+    robot : robots.Robot
         Robot you want to generate the center of mass function from
     
     language : Language.Language, optional
@@ -1173,7 +1171,7 @@ def generate_com_jacobian(robot, language=Language('python')):
 
     Parameters
     ----------
-    robot : create_robot_from_urdf.Robot
+    robot : robots.Robot
         Robot you want to generate the center of mass jacobian function from
     
     language : Language.Language, optional
@@ -1680,12 +1678,12 @@ def generate_everything(robot, list_ftm, list_btm, list_fk, list_jac, com,
     -----------
     
     Generates  all  the  desired  functions in the file 'filename.xx' where xx
-    stands for the language file extensiton.
+    stands for the language file extension.
 
     Parameters
     ----------
     
-    robot : create_robot_from_urdf.Robot
+    robot : robots.Robot
         Robot object for code generation
     
     list_ftm : list of str
