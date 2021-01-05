@@ -1,0 +1,7 @@
+TransZ..d, RotZ..theta, TransX..r, RotX..alpha
+
+name, d,    theta,  r,   alpha
+
+L1,   0,    theta1, 0.5, 0
+L2,   0,    theta2, 0,   1.57079633
+L3,   1.04, theta3, 0,   0

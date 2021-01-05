@@ -88,7 +88,8 @@ the following headers in the order you want. Some of them are optional.
 - `r`: length of the common normal (aka `a`, but if using this notation, do 
   not confuse with `alpha`). Assuming a revolute joint, this is the radius 
   about previous `z`. Must be given in meters.
-- `alpha`: angle about common normal, from old `z` axis to new `z` axis
+- `alpha`: angle about common normal, from old `z` axis to new `z` axis. Must
+  be given in radians.
 - `pmin` *(optional)*: minimal reachable position (min of `theta` / `alpha` value for
   revolute joints in radians, min of `r`, `d` value for prismatic joints in meters).
 - `pmax` *(optional)*: maximal reachable position (max of `theta` / `alpha` value for
@@ -96,6 +97,7 @@ the following headers in the order you want. Some of them are optional.
 - `vmax` *(optional)*: maximal reachable velocity (max of the derivative of
   `theta` / `alpha` for revolute joints in radians per seconds, max of
   the derivative of `r`, `d` for prismatic joints in meters per seconds).
+  Must be positive (velocity is expressed as a norm)
 - `amax` *(optional)*: maximal reachable acceleration (max of the second derivative of
   `theta` / `alpha` for revolute joints in radians per seconds², max of
   the second derivative of `r`, `d` for prismatic joints in meters per seconds²).
@@ -107,7 +109,7 @@ If you do not specify this field, it will be set to a null vector by default.
 - `mass` *(optional)*: mass of the link. Must be given in kilograms.
 If you do not specify this field, it will be set to 0 kg.
   
-Note that if you don't fill optional fields, they will default to 0, whatever
+Note that if you don't fill optional fields, they will default to `None`, whatever
 their unit is. Only the name will default to `link_n` where `n` is the row number.
 
 The `pmin`, `pmax`, `vmax` and `amax` will be applied for the
@@ -142,6 +144,13 @@ the same order.
 If you write the `name` header, the names must be string values
 (do not write the quotes). It can not contain any non-alphanumeric character
 except underscores `_` otherwise the generated code might not be valid !
+In the general case, the `name` field is valid if and only if the following
+Python code returns `True` :
+
+```python
+name = "arm_1"  # Any link / joint name
+name.isidentifier()
+```
 
 All the other values (except one, see below) must be floating-point convertible
 strings. The value will be valid if and only if the following Python code does not 
@@ -155,10 +164,17 @@ float(value)
 There is of course an exception for one value per row : the one representing
 the degree of freedom of your joint. You can set it for `d`, `theta`, `r`, or
 `alpha`.
-In that way, you can write any non-numeric value but note that **the name you
-give for the degree of freedom will be ignored*** and set to an arbitrary one.
-For example, if you name your DoF `angle_1`, this name won't appear in the
-generated code, it will be replaced by something like `theta_joint1`.
+In that way, you can write any non-numeric value but ensure it only contains
+ASCII letters, numbers and underscores, so it creates a valid name as a
+variable. For example, `theta_1` is a valid name whereas `1_theta`,
+`θ1` or `theta-1` are not valid.
+In general, the name of the degree of freedom
+is valid if and only if the following Python code returns `True` :
+
+```python
+dof = "theta_1"  # Any degree of freedom name
+dof.isidentifier()
+```
 
 If you have many degrees of freedom in the
 same row, please consider splitting them into many rows, so you have only one
@@ -166,10 +182,6 @@ degree of freedom per row.
 
 It is of course possible to have a 0 degrees of freedom row, if you have only
 floating-point values in your row.
-
-**&nbsp;If you wonder why, it is because URDF files don't name the degrees of
-freedom of their joints, and the same algorithm is used to deal with robots
-described in .dhparams files.*
 
 ## Useful Informations
 
@@ -215,7 +227,18 @@ A4,   1.5707963267948966,  0, theta5, 0.39,   -2.96706, 2.96706, 3.1415926535, �
 A5,   1.5707963267948966,  0, theta6, 0,      -2.0944,  2.0944,  1.9634954,    −0.000259; −0.005328; 0.005956
 A6,   -1.5707963267948966, 0, theta7, 0.078,  -2.96706, 2.96706, 1.9634954,    0.0;       0.0;       0.063
 ```
+
+## Parse and Use
+
+URDFast fully supports .dhparams files.
+
+URDFast includes a Python parser for .dhparams files, see `dh_params.py`.
+
 ## Correspondence with URDF
+
+*This part is here only for understanding purposes, and is not related to the
+file format directly. This can help you understand how this format works
+comparing it with URDF.*
 
 For every row (line starting from the 5th) you can give a degree of freedom.
 The nature of this degree of freedom determines the joint type. Here is the
@@ -228,3 +251,8 @@ correspondence with URDF joint types :
 - If your DoF is set for `r` or `d` **and** you set `pmin` and `pmax`
   headers : prismatic joint
 - No DoF : fixed joint
+
+In URDF, you have both &lt;joint&gt; and &lt;link&gt; elements. In .dhparams
+file format, the link and the joints are described on the same row.
+The `com` and `mass` properties refer to link whereas all the other properties
+refer to the joint. One row describes the joint and its child link.
