@@ -7,7 +7,7 @@ https://github.com/Teskann/URDFast/blob/master/documentation/dhparams_file_forma
 from sympy import Symbol
 
 
-class DHparamsRow:
+class DHParamsRow:
     """
     Object representing a row of a .dhparams file once it has been parsed.
 
@@ -158,7 +158,7 @@ class DHparamsRow:
                                 str(self.amax), str(self.mass), str(self.com))
 
 
-class DHparams:
+class DHParams:
     """
     Object representing a .dhparams file once it has been parsed.
 
@@ -169,7 +169,7 @@ class DHparams:
         List of all the transformations applied to the joint. Every element of
         the list must be a CSV value of the line 1 of a .dhparam file.
 
-    rows : list of DHparamsRow
+    rows : list of DHParamsRow
         All the rows of the .dhparams file
 
     Examples
@@ -196,7 +196,7 @@ class DHparams:
             element of the list must be a CSV value of the line 1 of a
             .dhparam file.
 
-        rows : list of DHparamsRow
+        rows : list of DHParamsRow
             All the rows of the .dhparams file
         """
 
@@ -240,7 +240,7 @@ def parse_dhparams(text):
     Returns
     -------
 
-    DHparams
+    DHParams
         Object of the parsed file
 
     Examples
@@ -394,7 +394,7 @@ def parse_dhparams(text):
 
         # Create the row object  . . . . . . . . . . . . . . . . . . . . . . .
 
-        rows.append(DHparamsRow(name=name,
+        rows.append(DHParamsRow(name=name,
                                 d=mat["d"],
                                 theta=mat["theta"],
                                 r=mat["r"],
@@ -408,7 +408,7 @@ def parse_dhparams(text):
 
     # Return the object ......................................................
 
-    return DHparams(rot_trans=trans, rows=rows)
+    return DHParams(rot_trans=trans, rows=rows)
 
 
 # Create the object from a file ______________________________________________
@@ -425,7 +425,7 @@ def dh(filename):
     Returns
     -------
 
-    DHparams
+    DHParams
         Object corresponding to the parsed file
 
     Examples
