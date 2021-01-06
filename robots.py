@@ -6,8 +6,9 @@ Robot Objects
 from anytree import Node, RenderTree, Walker
 from URDF import URDF
 from sympy import Matrix, simplify
-from joints import Joint
-from links import Link
+from joints import JointURDF, JointDH
+from links import LinkURDF, LinkDH
+from dh_params import dh
 
 
 # ----------------------------------------------------------------------------
@@ -60,85 +61,6 @@ class Robot:
     tree = None
 
     # Methods ================================================================
-
-    # Default Constructor ____________________________________________________
-
-    def __init__(self, urdf_object, progressbar=None):
-        """
-        Description
-        -----------
-        
-        Robot Constructor. You can construct a robot from an URDF Object.
-        
-        Parameters
-        ----------
-        
-        urdf_object : URDF.URDF
-            URDF Object from the URDF library
-        
-        progressbar : PyQt5.QtWidgets.QProgressBar or None, optional
-                      default is None
-            Progressbar to update during the robot creation (used in GUI)
-            If it is None, no progressbar is updated
-            
-        Examples
-        --------
-        
-        TODO !!!!!!!
-        
-        """
-
-        # 1 - Robot Name .....................................................
-
-        if 'name' in urdf_object.robot[0].keys():
-            self.name = urdf_object.robot[0]['name']
-        else:
-            self.name = "no_name"
-
-        # 2 - Robot Links ....................................................
-
-        self.links = []
-
-        for i in range(urdf_object.nlinks()):
-            self.links.append(Link(urdf_object, i))
-
-        # 3 - Robot Joints ...................................................
-
-        self.joints = []
-
-        for i in range(urdf_object.njoints()):
-            if progressbar is not None:
-                progressbar.setProperty("value",
-                                        100 * (i + 1) / urdf_object.njoints())
-            self.joints.append(Joint(urdf_object, i))
-
-        # 4 - Tree Representation ............................................
-
-        # Creating a Node per Link . . . . . . . . . . . . . . . . . . . . . .
-
-        all_link_nodes = []
-        for i, _ in enumerate(self.links):
-            all_link_nodes.append(Node('link_' + str(i)))
-
-        # Creating a Node per Joint  . . . . . . . . . . . . . . . . . . . . .
-
-        all_joint_nodes = []
-        for i, joint in enumerate(self.joints):
-            all_joint_nodes.append(Node('joint_' + str(i),
-                                   parent=all_link_nodes[joint.parent]))
-
-        # Setting parents for Link Nodes . . . . . . . . . . . . . . . . . . .
-
-        root_link_id = 0
-        for i, _ in enumerate(all_link_nodes):
-            if self.links[i].is_root:
-                root_link_id = i
-                continue
-            all_link_nodes[i].parent = all_joint_nodes[self.links[i]
-                                                       .child_joints[0]]
-
-        # Setting Global Tree
-        self.tree = RenderTree(all_link_nodes[root_link_id])
 
     # Number of Links ________________________________________________________
 
@@ -289,7 +211,7 @@ class Robot:
 
     # Get transition matrices between 2 Joints / Links _______________________
 
-    def forward_kinematics(self, origin, destination):
+    def forward_kinematics(self, origin, destination, optimize=False):
         """
         Description
         -----------
@@ -319,6 +241,11 @@ class Robot:
                 considered Joint / Link in self.joints / self.links.
                 
                 Example : destination='link_0'
+
+        optimize : bool
+            Set this to True if you want the forward kinematics function to be
+            simplified.  This might  take  a long time to compute (about 1 min
+            for a 6 DoF kinematic chain)
         
         Returns
         -------
@@ -344,15 +271,15 @@ class Robot:
 
         # First upwards joints
         for up_joint_nb in upwards:
-            T *= simplify(self.joints[up_joint_nb].T ** (-1))
-            simplify(T)
+            T *= self.joints[up_joint_nb].Tinv
 
         # Then downwards joints
         for down_joint_nb in downwards:
             T *= self.joints[down_joint_nb].T
-            simplify(T)
 
-        return T.factor().cancel().nsimplify(tolerance=1e-10)
+        T = T.factor().evalf().nsimplify(tolerance=1e-10).evalf()
+        return T.simplify().nsimplify(tolerance=1e-10).evalf() if optimize \
+            else T
 
     # Cartesian Jacobian _____________________________________________________
 
@@ -466,6 +393,13 @@ class Robot:
             # Joint type
             if node_type == 'joint':
                 real_node_name = self.joints[node_nb].name
+                # Display degrees of freedom
+                try:
+                    dof = "(" + str(self.joints[node_nb].T
+                                    .free_symbols)[1:-1] + ")"
+                    real_node_name += dof
+                except AttributeError:
+                    pass
 
             # Link Type
             else:
@@ -478,46 +412,186 @@ class Robot:
 
 
 # ----------------------------------------------------------------------------
+# | URDF Robots                                                              |
+# ----------------------------------------------------------------------------
+
+class RobotURDF(Robot):
+    """
+    Robot for URDF files.
+
+    Only implements a constructor for URDF files.
+    For more details, see Robot class
+
+    Examples
+    --------
+
+    You can create a robot from an URDF file using the parser :
+
+    >>> from URDF import URDF
+    >>> urdf_obj = URDF("./Examples/example_0.urdf")
+    >>> robot_obj = RobotURDF(urdf_obj)
+
+    """
+
+    # URDF Constructor _______________________________________________________
+
+    def __init__(self, urdf_object, progressbar=None):
+        """
+        Description
+        -----------
+
+        Robot Constructor. You can construct a robot from an URDF Object.
+
+        Parameters
+        ----------
+
+        urdf_object : URDF.URDF
+            URDF Object from the URDF library
+
+        progressbar : PyQt5.QtWidgets.QProgressBar or None, optional
+                      default is None
+            Progressbar to update during the robot creation (used in GUI)
+            If it is None, no progressbar is updated
+
+        Examples
+        --------
+
+        Examples
+        --------
+
+        You can create a robot from an URDF file using the parser :
+
+        >>> from URDF import URDF
+        >>> urdf_obj = URDF("./Examples/example_0.urdf")
+        >>> robot_obj = RobotURDF(urdf_obj)
+
+        """
+
+        # 1 - Robot Name .....................................................
+
+        if 'name' in urdf_object.robot[0].keys():
+            self.name = urdf_object.robot[0]['name']
+        else:
+            self.name = "no_name"
+
+        # 2 - Robot Links ....................................................
+
+        self.links = []
+
+        for i in range(urdf_object.nlinks()):
+            self.links.append(LinkURDF(urdf_object, i))
+
+        # 3 - Robot Joints ...................................................
+
+        self.joints = []
+
+        for i in range(urdf_object.njoints()):
+            if progressbar is not None:
+                progressbar.setProperty("value",
+                                        100 * (i + 1) / urdf_object.njoints())
+            self.joints.append(JointURDF(urdf_object, i))
+
+        # 4 - Tree Representation ............................................
+
+        # Creating a Node per Link . . . . . . . . . . . . . . . . . . . . . .
+
+        all_link_nodes = []
+        for i, _ in enumerate(self.links):
+            all_link_nodes.append(Node('link_' + str(i)))
+
+        # Creating a Node per Joint  . . . . . . . . . . . . . . . . . . . . .
+
+        all_joint_nodes = []
+        for i, joint in enumerate(self.joints):
+            all_joint_nodes.append(Node('joint_' + str(i),
+                                        parent=all_link_nodes[joint.parent]))
+
+        # Setting parents for Link Nodes . . . . . . . . . . . . . . . . . . .
+
+        root_link_id = 0
+        for i, _ in enumerate(all_link_nodes):
+            if self.links[i].is_root:
+                root_link_id = i
+                continue
+            all_link_nodes[i].parent = (all_joint_nodes[self.links[i]
+                                        .child_joints[0]])
+
+        # Setting Global Tree
+        self.tree = RenderTree(all_link_nodes[root_link_id])
+
+
+# ----------------------------------------------------------------------------
+# | DH params robot                                                          |
+# ----------------------------------------------------------------------------
+
+class RobotDH(Robot):
+    """
+    Robot for URDF files.
+
+    Only implements a constructor for URDF files.
+    For more details, see Robot class
+
+    Example
+    -------
+
+    You can create a RobotDH from a .dhparams file using the parser :
+
+    >>> from dh_params import dh
+    >>> dhparams_obj = dh("./Examples/example_0.dhparams")
+    >>> robot_obj = RobotDH(dhparams_obj)
+    """
+
+    # Dhparams Constructor ___________________________________________________
+
+    def __init__(self, dhparams_object):
+        """
+        Construct a Robot from a DHParams object
+
+        Parameters
+        ----------
+
+        dhparams_object : dh_params.DHParams
+            DHParams object of the robot you want to create
+
+        Example
+        -------
+
+        You can create a RobotDH from a .dhparams file using the parser :
+
+        >>> from dh_params import dh
+        >>> dhparams_obj = dh("./Examples/example_0.dhparams")
+        >>> robot_obj = RobotDH(dhparams_obj)
+        """
+
+        # Init Object attributes
+        self.links = []
+        self.joints = []
+        all_link_nodes = []
+        all_joint_nodes = []
+
+        # Create the world link
+        self.links.append(LinkDH(dhparams_object, 0, is_world=True))
+        all_link_nodes.append(Node("link_0"))
+
+        # Create all the joints and links
+        for i, _ in enumerate(dhparams_object.rows):
+            self.joints.append(JointDH(dhparams_object, i))
+            self.links.append(LinkDH(dhparams_object, i))
+
+            # Tree structure
+            all_joint_nodes.append(Node(f"joint_{i}",
+                                        parent=all_link_nodes[-1]))
+            all_link_nodes.append(Node(f"link_{i + 1}",
+                                       parent=all_joint_nodes[-1]))
+
+        self.tree = RenderTree(all_link_nodes[0])
+
+
+# ----------------------------------------------------------------------------
 # | MAIN - RUNNING TESTS                                                     |
 # ----------------------------------------------------------------------------
 
 if __name__ == '__main__':
-    # Link Class Tests _______________________________________________________
-
-    # example_0.urdf .........................................................
-
-    print("\n==================================\n")
-    print("Test : Link - example_0.urdf\n")
-    urdf_obj = URDF("./Examples/example_0.urdf")
-    link_obj = Link(urdf_obj, 1)
-    print(link_obj)
-
-    # example_1.urdf .........................................................
-
-    print("\n==================================\n")
-    print("Test : Link - example_1.urdf\n")
-    urdf_obj = URDF("./Examples/example_1.urdf")
-    link_obj = Link(urdf_obj, 0)
-    print(link_obj)
-
-    # Joint Class Tests ______________________________________________________
-
-    # example_0.urdf .........................................................
-
-    print("\n==================================\n")
-    print("Test : Joint - example_0.urdf\n")
-    urdf_obj = URDF("./Examples/example_0.urdf")
-    joint_obj = Joint(urdf_obj, 0)
-    print(joint_obj)
-
-    # example_1.urdf .........................................................
-
-    print("\n==================================\n")
-    print("Test : Joint - example_1.urdf\n")
-    urdf_obj = URDF("./Examples/example_1.urdf")
-    joint_obj = Joint(urdf_obj, 0)
-    print(joint_obj)
-
     # Robot Class Tests ______________________________________________________
 
     # example_0.urdf .........................................................
@@ -525,6 +599,14 @@ if __name__ == '__main__':
     print("\n==================================\n")
     print("Test : Robot - example_0.urdf\n")
     urdf_obj = URDF("./Examples/kuka.urdf")
-    robot_obj = Robot(urdf_obj)
+    robot_obj = RobotURDF(urdf_obj)
     print(robot_obj)
-    print(robot_obj.forward_kinematics('joint_5', 'joint_4'))
+    print(robot_obj.forward_kinematics('joint_0', 'joint_1'))
+
+    print("\n==================================\n")
+    print("Test : Robot - example_0.dhparams\n")
+    dhparams_obj = dh("./Examples/kuka.dhparams")
+    robot_obj = RobotDH(dhparams_obj)
+    print(robot_obj)
+    print(robot_obj.forward_kinematics('joint_0', 'joint_1'))
+

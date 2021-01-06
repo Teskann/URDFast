@@ -13,7 +13,7 @@ class Link:
     Link Class.
 
     This class describes link  objects.  These objects represent URDF link
-    elements. This class is used inside the Robot class (see below).
+    elements. This class is used inside the Robot class.
     The  link  element  describes  a  rigid  body  with an inertia, visual
     features, and collision properties.
 
@@ -65,61 +65,17 @@ class Link:
     child_joints : list of Joints
         All Joints that have the Link as child
 
+    is_root : bool
+        True if the link is the root link of the kinematic chain
+
+    is_terminal : bool
+        True if the link is at the end of the kinematic chain
+
     Constructor
     -----------
 
-    Only one constructor is implemented.
-    It creates a Link object from an URDF Object and a link number
-
-    Parameters :
-
-        urdfObject : URDF
-            URDF object from URDF library
-        link_number : int
-            Link   Number   in  the URDF file tree. Must be fewer than the
-            total number of links in the URDF object.
-
-    Examples :
-
-        Example  URDF  files  are  located  in  ./Examples  where . is the
-        directory containing robots.py
-
-        - Running example_0.urdf URDF file (with no <inertial> elements) :
-        >>> from URDF import URDF
-        >>> urdf_obj = URDF("./Examples/example_0.urdf")
-        >>> link_obj = Link(urdf_obj, 1)
-        >>> print(link_obj)
-        Link Name : link2
-        Link Center of Mass (m) :
-        [[0.]
-         [0.]
-         [0.]]
-        Link Mass (kg) : 0.0
-        Link Inertia Matrix (kg.m^2) :
-        [[1. 0. 0.]
-         [0. 1. 0.]
-         [0. 0. 1.]]
-        Is parent of joints number : []
-        Is child of joints number : [0]
-        Terminal Link
-
-        - Running example_1.urdf URDF file (with <inertial> elements) :
-        >>> urdfObj = URDF("./Examples/example_1.urdf")
-        >>> linkObj = Link(urdfObj, 0)
-        >>> print(linkObj)
-        Link Name : link1
-        Link Center of Mass (m) :
-        [[1.]
-         [1.]
-         [1.]]
-        Link Mass (kg) : 10.0
-        Link Inertia Matrix (kg.m^2) :
-        [[1. 2. 3.]
-         [2. 4. 5.]
-         [3. 5. 6.]]
-        Is parent of joints number : [0, 1]
-        Is child of joints number : []
-        Root Link
+    This class doesn't implement any constructors.
+    To instantiate a Link, instantiate a LinkURDF or a LinkDH instead.
 
     """
     # Data ===================================================================
@@ -152,6 +108,110 @@ class Link:
     # If the link a root link ?
     is_root = False
 
+    # Methods ================================================================
+
+    # Checks if the object is valid __________________________________________
+    def valid(self):
+        """
+        Description
+        -----------
+
+        This function checks if the Link object is valid, ie if it has :
+            - A not-None name
+            - A 3 x 1 numpy.ndarray com
+            - A positive or null mass
+            - A 3 x 3 symmetric numpy.ndarray inertia
+        This  function  raises  an exception if any of these statements is not
+        true.
+
+        Returns
+        -------
+        True if no exceptions are raised
+
+        """
+        # self.link_id .......................................................
+
+        if type(self.link_id) != int:
+            raise TypeError("Link id must be an integer")
+
+        if self.link_id < 0:
+            raise ValueError("Link id must be a positive integer")
+
+        # self.name ..........................................................
+
+        if self.name is None:
+            raise ValueError("Link name is None. You must give it a valid " +
+                             "name (str)")
+
+        if type(self.name) != str:
+            raise TypeError("Link name must be a str and is currently a " +
+                            f"{type(self.name)}")
+
+        # self.com ...........................................................
+
+        if type(self.com) != np.ndarray:
+            raise TypeError("Link com must be a numpy.ndarray and is " +
+                            f"currently a {type(self.com)}")
+
+        if self.com.shape != (3, 1):
+            raise ValueError(
+                "Link com shape must be (3, 1) and is currently" +
+                f" {self.com.shape}")
+
+        # self.mass ..........................................................
+
+        if type(self.mass) not in [float, int]:
+            raise TypeError("Link mass must be a float and is currently a " +
+                            f"{type(self.mass)}")
+        if self.mass < 0.0:
+            raise ValueError(
+                "Link mass must be greater or equal to 0 and is" +
+                f" currently {self.mass}")
+
+        # self.inertia .......................................................
+
+        if type(self.inertia) != np.ndarray:
+            raise TypeError("Link inertia must be a numpy.ndarray and is " +
+                            f"currently a {type(self.inertia)}")
+
+        if self.inertia.shape != (3, 3):
+            raise ValueError("Link inertia shape must be (3, 3) and is " +
+                             f"currently {self.inertia.shape}")
+
+        if not np.allclose(self.inertia, self.inertia.T):
+            raise ValueError("Link inertia must be symmetric")
+
+        return True
+
+    # Converting the Link Object to string ___________________________________
+
+    def __str__(self):
+        tostring = f"Link Name : {self.name}\n"
+        tostring += "Link Center of Mass (m) : \n"
+        tostring += f"{self.com}\n"
+        tostring += f"Link Mass (kg) : {self.mass}\n"
+        tostring += f"Link Inertia Matrix (kg.m^2) : \n{self.inertia}\n"
+        tostring += f"Is parent of joints number : {self.parent_joints}\n"
+        tostring += f"Is child of joints number : {self.child_joints}\n"
+
+        if self.is_root:
+            tostring += "Root Link\n"
+        if self.is_terminal:
+            tostring += "Terminal Link\n"
+
+        return tostring
+
+
+# ----------------------------------------------------------------------------
+# | URDF Links                                                               |
+# ----------------------------------------------------------------------------
+
+class LinkURDF(Link):
+    """
+    Link class implementing a constructor for URDF Objects
+    For more details, see Link class.
+    """
+
     # Constructor ============================================================
 
     # Default, giving an URDF Object and a link number _______________________
@@ -181,7 +241,7 @@ class Link:
         - Running example_0.urdf URDF file (with no <inertial> elements) :
         >>> from URDF import URDF
         >>> urdf_obj = URDF("./Examples/example_0.urdf")
-        >>> link_obj = Link(urdf_obj, 1)
+        >>> link_obj = LinkURDF(urdf_obj, 1)
         >>> print(link_obj)
         Link Name : link2 "www.google.com"
         Link Center of Mass (m) :
@@ -200,7 +260,7 @@ class Link:
         - Running example_1.urdf URDF file (with <inertial> elements) :
         >>> from URDF import URDF
         >>> urdf_obj = URDF("./Examples/example_1.urdf")
-        >>> link_obj = Link(urdf_obj, 0)
+        >>> link_obj = LinkURDF(urdf_obj, 0)
         >>> print(link_obj)
         Link Name : link1
         Link Center of Mass (m) :
@@ -308,97 +368,104 @@ class Link:
 
         # Be sure the created object is valid ................................
 
-        self.__valid()
+        self.valid()
 
-    # Methods ================================================================
 
-    # Checks if the object is valid __________________________________________
-    def __valid(self):
+# ----------------------------------------------------------------------------
+# | DHParams Links                                                           |
+# ----------------------------------------------------------------------------
+
+class LinkDH(Link):
+    """
+    Link class implementing a constructor for .dhparams structure
+    For more details, see Link class.
+
+    Examples
+    --------
+
+    Create the world Link :
+
+    >>> from dh_params import dh
+    >>> dh_obj = dh("./Examples/example_0.dhparams")
+    >>> link = LinkDH(dh_obj, 0, is_world=True)
+
+    Create a normal Link from a .dhparams file :
+
+    >>> from dh_params import dh
+    >>> dh_obj = dh("./Examples/example_0.dhparams")
+    >>> link = LinkDH(dh_obj, 0)
+    """
+
+    def __init__(self, dhparams_object, link_number, is_world=False):
         """
-        Description
-        -----------
+        Constructor for dhparams structure
 
-        This function checks if the Link object is valid, ie if it has :
-            - A not-None name
-            - A 3 x 1 numpy.ndarray com
-            - A positive or null mass
-            - A 3 x 3 symmetric numpy.ndarray inertia
-        This  function  raises  an exception if any of these statements is not
-        true.
+        Parameters
+        ----------
 
-        Returns
-        -------
-        True if no exceptions are raised
+        dhparams_object : dh_params.DHParams
+            DH params object of the robot possessing the link
+
+        link_number : int
+            link_number in the list of dhparams.rows
+
+        is_world : bool
+            Set this value to True if the link you want to create is the world
+            link  (the  place where the first joint of your kinematic chain is
+            attached).
+            If  this is true, the link_number parameter is ignored. You should
+            set  it  to  0. The dhparams_object parameter is also ignored.
+
+            Defaults to False
+
+        Examples
+        --------
+
+        Create the world Link :
+
+        >>> from dh_params import dh
+        >>> dh_obj = dh("./Examples/example_0.dhparams")
+        >>> link = LinkDH(dh_obj, 0, is_world=True)
+
+        Create a normal Link from a .dhparams file :
+
+        >>> from dh_params import dh
+        >>> dh_obj = dh("./Examples/example_0.dhparams")
+        >>> link = LinkDH(dh_obj, 0)
 
         """
-        # self.link_id .......................................................
 
-        if type(self.link_id) != int:
-            raise TypeError("Link id must be an integer")
+        # Create the world link ..............................................
 
-        if self.link_id < 0:
-            raise ValueError("Link id must be a positive integer")
+        if is_world:
+            self.link_id = 0
+            self.name = "world"
+            self.com = np.array([0, 0, 0])
+            self.mass = 0
+            self.parent_joints = [0]
+            self.child_joints = []
+            self.inertia = np.eye(3)
+            self.is_root = True
+            return
 
-        # self.name ..........................................................
+        # Normal link ........................................................
 
-        if self.name is None:
-            raise ValueError("Link name is None. You must give it a valid " +
-                             "name (str)")
+        # Checking if the link exists  . . . . . . . . . . . . . . . . . . . .
 
-        if type(self.name) != str:
-            raise TypeError("Link name must be a str and is currently a " +
-                            f"{type(self.name)}")
+        if link_number > len(dhparams_object.rows):
+            raise KeyError("The link you try to create does not exist. "
+                           f"link_number {link_number} out of range (the "
+                           f"object has {len(dhparams_object.rows)} links)")
 
-        # self.com ...........................................................
+        # Fill data  . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
 
-        if type(self.com) != np.ndarray:
-            raise TypeError("Link com must be a numpy.ndarray and is " +
-                            f"currently a {type(self.com)}")
+        self.link_id = link_number + 1
+        self.name = "link_" + dhparams_object.rows[link_number].name
+        self.com = np.array(dhparams_object.rows[link_number].com)
+        self.mass = dhparams_object.rows[link_number].mass
+        self.parent_joints = [link_number + 1]
+        self.child_joints = [link_number]
+        self.inertia = np.eye(3)
+        self.is_root = False
 
-        if self.com.shape != (3, 1):
-            raise ValueError(
-                "Link com shape must be (3, 1) and is currently" +
-                f" {self.com.shape}")
-
-        # self.mass ..........................................................
-
-        if type(self.mass) not in [float, int]:
-            raise TypeError("Link mass must be a float and is currently a " +
-                            f"{type(self.mass)}")
-        if self.mass < 0.0:
-            raise ValueError(
-                "Link mass must be greater or equal to 0 and is" +
-                f" currently {self.mass}")
-
-        # self.inertia .......................................................
-
-        if type(self.inertia) != np.ndarray:
-            raise TypeError("Link inertia must be a numpy.ndarray and is " +
-                            f"currently a {type(self.inertia)}")
-
-        if self.inertia.shape != (3, 3):
-            raise ValueError("Link inertia shape must be (3, 3) and is " +
-                             f"currently {self.inertia.shape}")
-
-        if not np.allclose(self.inertia, self.inertia.T):
-            raise ValueError("Link inertia must be symmetric")
-
-        return True
-
-    # Converting the Link Object to string ___________________________________
-
-    def __str__(self):
-        tostring = f"Link Name : {self.name}\n"
-        tostring += "Link Center of Mass (m) : \n"
-        tostring += f"{self.com}\n"
-        tostring += f"Link Mass (kg) : {self.mass}\n"
-        tostring += f"Link Inertia Matrix (kg.m^2) : \n{self.inertia}\n"
-        tostring += f"Is parent of joints number : {self.parent_joints}\n"
-        tostring += f"Is child of joints number : {self.child_joints}\n"
-
-        if self.is_root:
-            tostring += "Root Link\n"
-        if self.is_terminal:
-            tostring += "Terminal Link\n"
-
-        return tostring
+        self.is_terminal = link_number == (len(dhparams_object.rows) - 1)

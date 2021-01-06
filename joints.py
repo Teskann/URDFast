@@ -4,14 +4,224 @@ Joint Elements
 
 import numpy as np
 from sympy import nsimplify, Matrix, cos, sin, Symbol, Min, Max
+from abc import ABC, abstractmethod
 
 
-class Joint:
+# ----------------------------------------------------------------------------
+# | Joint Class                                                              |
+# ----------------------------------------------------------------------------
+
+class Joint(ABC):
     """
     Description
     -----------
 
-    Joint Class.
+    Joint class. Used to describe joint objects, either in URDF (see JointURDF
+    class) or for Denavit–Hartenberg joints (see JointDH class).
+    This class is not supposed to be instantiated.
+
+    Data Structure
+    --------------
+
+    name : str
+        Joint name. This field is required or an error will be thrown
+
+    parent : int
+        Parent  link id. Corresponds to the link_id of the link which name
+        is  the  <parent>  element  of the <joint> element in the URDF XML
+        representation.
+
+    child : int
+        Child  link id.  Corresponds to the link_id of the link which name
+        is  the  <child>  element  of  the <joint> element in the URDF XML
+        representation.
+
+    T : sympy.matrices.immutable.ImmutableDenseMatrix
+        Transition matrix of the joint
+
+    Tinv : sympy.matrices.immutable.ImmutableDenseMatrix
+        Inverse of the transition matrix of the joint
+
+    """
+
+    # Init ___________________________________________________________________
+
+    @abstractmethod
+    def __init__(self, name, parent, child):
+        """
+        Description
+        -----------
+
+        Joint  constructor.  This  is  the  super  constructor  that  MUST  be
+        overridden in the child classes.
+
+        Parameters
+        ----------
+
+        name : str
+            Joint name. This field is required or an error will be thrown
+
+        parent : int
+            Parent  link id. Corresponds to the link_id of the link which name
+            is  the  <parent>  element  of the <joint> element in the URDF XML
+            representation.
+
+        child : int
+            Child  link id.  Corresponds to the link_id of the link which name
+            is  the  <child>  element  of  the <joint> element in the URDF XML
+            representation.
+
+        Returns
+        -------
+
+        None.
+
+        """
+
+        self.name = name
+        self.parent = parent
+        self.child = child
+        self.T = None
+        self.Tinv = None
+        self.update_T()
+
+    # Update T _______________________________________________________________
+
+    def update_T(self):
+        """
+        Description
+        -----------
+
+        Updates the T and Tinv attributes calling self.__T()
+        """
+
+        self.T = self.T_()
+        self.Tinv = (self.T ** (-1)).simplify()
+        self.Tinv = nsimplify(self.Tinv, tolerance=1e-10).evalf()
+
+    # T ______________________________________________________________________
+
+    @abstractmethod
+    def T_(self, consider_limits=False, tolerance=1e-10):
+        """
+        Description
+        -----------
+
+        Returns  the  transformation  matrix from the parent link to the child
+        link in homogeneous coordinates.
+        This matrix is computed symbolically
+
+        The degrees of freedom names are formatted like this :
+            prefix_name
+
+            where name is the joint name (self.joint_name) and prefix is :
+                - 'd' for 1 DOF translation
+                - 'dx' / 'dy' for 2 DOF translations
+                - 'dx' / 'dy' / 'dz' for 3 DOF translations
+                - 'theta' for 1 DOF rotations
+                - 'roll' / 'pitch' / 'yaw' for 3 DOF rotations
+
+        Parameters
+        ----------
+
+        consider_limits : bool
+            If  True,  the  transition matrices ensure it's not possible to go
+            beyond  self.limit_lower and self.limit_upper. This results adding
+            max  and  min  functions in the transition matrix. For example, if
+            the  degree  of  freedom is d and consider_limits is True, every d
+            value will become :
+                min(max(d, self.limit_lower), self.limit_upper)
+            (if the limits are not None).
+
+            This can cause derivation  problems so you can disable this option
+            turning consider_limits to  False.  Note that some types of joints
+            NEED limits  (revolute & prismatic)  and  some  just  ignore them.
+
+            Be  careful  with  this option, as the default limit values are 0.
+            So,  if  your  URDF  file doesn't specify limits, this option will
+            allow  the  DOF  to  move  between 0 and 0. This will consequently
+            "remove" the degree of freedom from the transition matrix.
+
+            Defaults to False
+
+        tolerance : float
+            Tolerance for simplification of the expression.
+
+            Defaults to 1e-10
+
+        Returns
+        -------
+        sympy.matrices.immutable.ImmutableDenseMatrix
+            Transformation  matrix  from  the parent link to the child link in
+            homogeneous coordinates. The shape is (4, 4)
+
+        """
+        pass
+
+    # Valid __________________________________________________________________
+
+    @abstractmethod
+    def valid(self):
+        """
+        Description
+        -----------
+
+        This function checks if the Joint object is valid, ie if it has :
+            - A str name
+            - A list of valid parent links
+            - A list of valid child links
+        This  function  raises  an exception if any of these statements is not
+        true.
+
+        Returns
+        -------
+
+        True if no exceptions are raised
+
+        """
+        # self.name ..........................................................
+
+        if self.name is None:
+            raise ValueError(
+                "Joint name is None. You must give it a valid " +
+                "name (str)")
+
+        if type(self.name) != str:
+            raise TypeError(
+                "Joint name must be a str and is currently a " +
+                f"{type(self.name)}")
+
+        # self.parent ........................................................
+
+        if type(self.parent) != int:
+            raise TypeError("Joint parent must be an integer and is " +
+                            f"currently a {type(self.parent)}")
+
+        if self.parent < 0:
+            raise ValueError("Joint parent must be a positive integer")
+
+        # self.child .........................................................
+
+        if type(self.child) != int:
+            raise TypeError("Joint child must be an integer and is " +
+                            f"currently a {type(self.child)}")
+
+        if self.child < 0:
+            raise ValueError("Joint child must be a positive integer")
+
+        return True
+
+
+# ----------------------------------------------------------------------------
+# | JointURDF Class                                                          |
+# ----------------------------------------------------------------------------
+
+class JointURDF(Joint):
+    """
+    Description
+    -----------
+
+    Joint Class for URDF files.
 
     This class describes joint objects. These objects represent URDF joint
     elements. This class is used inside the Robot class (see below).
@@ -26,11 +236,30 @@ class Joint:
     For  more  details  about  this  object description, refer to the URDF
     Joint documentation : http://wiki.ros.org/urdf/XML/joint
 
-    Data Structure
-    --------------
+    Inherrited from Joint
+    ---------------------
 
     name : str
         Joint name. This field is required or an error will be thrown
+
+    parent : int
+        Parent  link id. Corresponds to the link_id of the link which name
+        is  the  <parent>  element  of the <joint> element in the URDF XML
+        representation.
+
+    child : int
+        Child  link id.  Corresponds to the link_id of the link which name
+        is  the  <child>  element  of  the <joint> element in the URDF XML
+        representation.
+
+    T : sympy.matrices.immutable.ImmutableDenseMatrix
+        Transition matrix of the joint
+
+    Tinv : sympy.matrices.immutable.ImmutableDenseMatrix
+        Inverse of the transition matrix of the joint
+
+    Data Structure
+    --------------
 
     joint_type : str
         Specifies  the  type  of  joint,  where  type  can  be  one of the
@@ -69,16 +298,6 @@ class Joint:
         SI Unit : radians
 
         Default : Null 3x1 Vector : numpy.zeros((3, 1))
-
-    parent : int
-        Parent  link id. Corresponds to the link_id of the link which name
-        is  the  <parent>  element  of the <joint> element in the URDF XML
-        representation.
-
-    child : int
-        Child  link id.  Corresponds to the link_id of the link which name
-        is  the  <child>  element  of  the <joint> element in the URDF XML
-        representation.
 
     axis : 3 x 1 numpy.ndarray
         The  joint  axis specified in the joint frame. This is the axis of
@@ -124,12 +343,6 @@ class Joint:
 
         SI Unit : m/s for prismatic joints, rad/s for revolute joints
 
-    T : sympy.matrices.immutable.ImmutableDenseMatrix
-        Transition matrix of the joint
-
-    Tinv : sympy.matrices.immutable.ImmutableDenseMatrix
-        Inverse of the transition matrix of the joint
-
     Constructor
     -----------
 
@@ -152,7 +365,7 @@ class Joint:
         - Running example_0.urdf URDF file (pretty simple <joint>) :
         >>> from URDF import URDF
         >>> urdf_obj = URDF("./Examples/example_0.urdf")
-        >>> joint_obj = Joint(urdf_obj, 0)
+        >>> joint_obj = JointURDF(urdf_obj, 0)
         >>> print(joint_obj)
         Joint Name : joint1
         Joint Type : continuous
@@ -178,7 +391,7 @@ class Joint:
 
         - Running example_1.urdf URDF file (more complex <joint>) :
         >>> urdf_obj = URDF("./Examples/example_1.urdf")
-        >>> joint_obj = Joint(urdf_obj, 0)
+        >>> joint_obj = JointURDF(urdf_obj, 0)
         >>> print(joint_obj)
         Joint Name : joint1
         Joint Type : prismatic
@@ -262,13 +475,9 @@ class Joint:
         Example URDF files are located in ./Examples  where . is the directory
         directory containing robots.py
 
-        - Running example_0.urdf URDF file (with no <inertial> elements) :
-
-        TODO
-
-        - Running example_1.urdf URDF file (with <inertial> elements) :
-
-        TODO
+        >>> from URDF import URDF
+        >>> urdf_obj = URDF("./Examples/example_0.urdf")
+        >>> joint_obj = JointURDF(urdf_obj, 0)
         """
         # Checking if the joint exists
         if joint_number > urdf_object.njoints():
@@ -280,7 +489,7 @@ class Joint:
         # 1 - Joint Name .....................................................
 
         if 'name' in urdf_object_joint.keys():
-            self.name = urdf_object_joint['name']
+            name = urdf_object_joint['name']
         else:
             raise KeyError("Joint must have a name")
 
@@ -318,6 +527,7 @@ class Joint:
 
         # 4 - Parent Link ....................................................
 
+        parent = None
         if 'parent' in urdf_object_joint.keys():
 
             # Simplifying notation
@@ -331,7 +541,7 @@ class Joint:
 
                     # If found, get the index value
                     if parent_dict['link'] == linkURDF['name']:
-                        self.parent = i
+                        parent = i
                         break
             else:
                 raise KeyError("Joint Parent Link must have a Link property")
@@ -340,6 +550,7 @@ class Joint:
 
         # 5 - Child Link .....................................................
 
+        child = None
         if 'child' in urdf_object_joint.keys():
 
             # Simplifying notation
@@ -353,7 +564,7 @@ class Joint:
 
                     # If found, get the index value
                     if child_dict['link'] == linkURDF['name']:
-                        self.child = i
+                        child = i
                         break
             else:
                 raise KeyError("Joint Child Link must have a Link property")
@@ -365,7 +576,7 @@ class Joint:
         if 'axis' in urdf_object_joint.keys():
             # File Value
             if 'xyz' in urdf_object_joint['axis'].keys():
-                self.axis = np.array(urdf_object_joint['axis']['xyz'])\
+                self.axis = np.array(urdf_object_joint['axis']['xyz']) \
                     .reshape((3, 1))
                 self.axis /= np.linalg.norm(self.axis)
             # Default Value
@@ -436,21 +647,23 @@ class Joint:
             self.limit_effort = None
             self.limit_velocity = None
 
-        self.T = self.__T()
+        # Super call .........................................................
 
-        self.Tinv = (self.T ** (-1)).simplify()
+        super().__init__(name, parent, child)
 
-        self.Tinv = nsimplify(self.Tinv, tolerance=1e-10).evalf()
+        # Updating T .........................................................
+
+        super().update_T()
 
         # 8 - Checking if the joint is valid .................................
 
-        self.__valid()
+        self.valid()
 
     # Methods ================================================================
 
     # Getting the transition Matrix T ________________________________________
 
-    def __T(self, consider_limits=False, tolerance=1e-10):
+    def T_(self, consider_limits=False, tolerance=1e-10):
         """
         Description
         -----------
@@ -499,7 +712,7 @@ class Joint:
 
         Returns
         -------
-        numpy.ndarray
+        sympy.matrices.immutable.ImmutableDenseMatrix
             Transformation  matrix  from  the parent link to the child link in
             homogeneous coordinates. The shape is (4, 4)
 
@@ -682,7 +895,7 @@ class Joint:
 
         # A  bug  in  SymPy  is  not  rounding  float  values  if they are not
         # multiplied  by  a  Symbol.  To  fix  this, we multiply T by a random
-        # Symbol, simplify and then divide by this Symbol.
+        # Symbol, optimize and then divide by this Symbol.
 
         debug_sym = Symbol('debug_symbol')
 
@@ -691,7 +904,7 @@ class Joint:
 
     # Checks if the joint is valid ___________________________________________
 
-    def __valid(self):
+    def valid(self):
         """
         Description
         -----------
@@ -716,15 +929,10 @@ class Joint:
         True if no exceptions are raised
 
         """
-        # self.name ..........................................................
 
-        if self.name is None:
-            raise ValueError("Joint name is None. You must give it a valid " +
-                             "name (str)")
+        # Super call .........................................................
 
-        if type(self.name) != str:
-            raise TypeError("Joint name must be a str and is currently a " +
-                            f"{type(self.name)}")
+        super(JointURDF, self).valid()
 
         # self.joint_type ....................................................
 
@@ -758,24 +966,6 @@ class Joint:
         if self.origin_rpy.shape != (3, 1):
             raise ValueError("Joint origin_rpy shape must be (3, 1) and is " +
                              f"currently {self.origin_rpy.shape}")
-
-        # self.parent ........................................................
-
-        if type(self.parent) != int:
-            raise TypeError("Joint parent must be an integer and is " +
-                            f"currently a {type(self.parent)}")
-
-        if self.parent < 0:
-            raise ValueError("Joint parent must be a positive integer")
-
-        # self.child .........................................................
-
-        if type(self.child) != int:
-            raise TypeError("Joint child must be an integer and is " +
-                            f"currently a {type(self.child)}")
-
-        if self.child < 0:
-            raise ValueError("Joint child must be a positive integer")
 
         # self.axis ..........................................................
 
@@ -860,3 +1050,266 @@ class Joint:
         joint_str += f"\tVelocity : {self.limit_velocity}\n\n"
 
         return joint_str
+
+
+# ----------------------------------------------------------------------------
+# | JointDH Class                                                            |
+# ----------------------------------------------------------------------------
+
+class JointDH(Joint):
+    """
+    Description
+    -----------
+
+    Joint Class for .dhparams files.
+    For more details, see :
+
+    https://github.com/Teskann/URDFast/blob/master/documentation/dhparams_file_format.md
+
+    Inherited from Joint
+    ---------------------
+
+    name : str
+        Joint name. This field is required or an error will be thrown
+
+    parent : int
+        Parent  link id. Corresponds to the link_id of the link which name
+        is  the  <parent>  element  of the <joint> element in the URDF XML
+        representation.
+
+    child : int
+        Child  link id.  Corresponds to the link_id of the link which name
+        is  the  <child>  element  of  the <joint> element in the URDF XML
+        representation.
+
+    T : sympy.matrices.immutable.ImmutableDenseMatrix
+        Transition matrix of the joint
+
+    Tinv : sympy.matrices.immutable.ImmutableDenseMatrix
+        Inverse of the transition matrix of the joint
+
+    Data Structure
+    --------------
+
+    __rot_trans : list of str
+        List of all the transformations applied to the joint. Every element of
+        the list must be a CSV value of the line 1 of a .dhparam file.
+
+    __d : float or sympy.core.symbol.Symbol
+        Offset along previous z to the common normal. Must be given in meters.
+
+    __theta : float or sympy.core.symbol.Symbol
+        Angle about previous z, from old x to new x. Must be given in radians.
+
+    __r : float or sympy.core.symbol.Symbol
+        Length of the common normal (aka a, but if using this notation, do not
+        confuse  with  alpha).  Assuming  a revolute joint, this is the radius
+        about previous z. Must be given in meters.
+
+    __alpha : float or sympy.core.symbol.Symbol
+        Angle  about  common  normal,  from  old z axis to new z axis. Must be
+        given in radians.
+
+    pmin : float or None
+        Minimal value the degree of freedom can reach (position).
+        Expressed  in  radians  for  angular degrees of freedom, in meters for
+        translation degrees of freedom.
+
+        Default is None
+
+    pmax : float or None
+        Maximal value the degree of freedom can reach (position).
+        Expressed  in  radians  for  angular degrees of freedom, in meters for
+        translation degrees of freedom.
+
+        Default is None
+
+    vmax : float or None
+        Maximal reachable velocity (max of the derivative of theta / alpha for
+        revolute  joints in radians per seconds, max of the derivative of r, d
+        for prismatic joints in meters per seconds).
+
+        Must be positive (the velocity is expressed as a norm).
+
+        Default is None
+
+    amax : float or None
+        maximal  reachable acceleration (max of the second derivative of theta
+        / alpha for revolute joints in radians per seconds², max of the second
+        derivative of r, d for prismatic joints in meters per seconds²).
+
+        Default is None
+
+    Example
+    -------
+
+    You can create a joint from a .dhparams file using the parser
+
+    >>> from dh_params import dh
+    >>> dh_obj = dh("./Examples/example_0.dhparams")
+    >>> joint = JointDH(dh_obj, 0)
+    """
+
+    # Constructor ____________________________________________________________
+
+    def __init__(self, dhparams, joint_number):
+        """
+        Parameters
+        ----------
+
+        dhparams : dh_params.DHParams
+            DH params object of the robot possessing the joint
+
+        joint_number : int
+            joint_number in the list of dhparams.rows
+
+        Example
+        -------
+
+        You can create a joint from a .dhparams file using the parser
+
+        >>> from dh_params import dh
+        >>> dh_obj = dh("./Examples/example_0.dhparams")
+        >>> joint = JointDH(dh_obj, 0)
+
+        """
+
+        if joint_number >= len(dhparams.rows):
+            raise KeyError("The joint you try to create does not exist. "
+                           f"joint_number {joint_number} out of range ("
+                           f"the object has {len(dhparams.rows)} joints)")
+
+        # Transformations ....................................................
+
+        self.__rot_trans = dhparams.rot_trans
+        self.__d = dhparams.rows[joint_number].d
+        self.__theta = dhparams.rows[joint_number].theta
+        self.__r = dhparams.rows[joint_number].r
+        self.__alpha = dhparams.rows[joint_number].alpha
+
+        # Super call .........................................................
+
+        super().__init__("joint_" + dhparams.rows[joint_number].name,
+                         joint_number,
+                         joint_number + 1)
+
+        # Limits .............................................................
+
+        # If there are no DoF ==> Ignoring limits
+        if all([type(x) == float for x in [self.__d, self.__theta,
+                                           self.__r, self.__alpha]]):
+            self.pmin = None
+            self.pmax = None
+            self.vmax = None
+            self.amax = None
+        # If there is a DoF
+        else:
+            self.pmin = dhparams.rows[joint_number].pmin
+            self.pmax = dhparams.rows[joint_number].pmax
+            self.vmax = dhparams.rows[joint_number].vmax
+            self.amax = dhparams.rows[joint_number].amax
+
+        self.valid()
+
+    # Transition Matrix ______________________________________________________
+
+    def T_(self, consider_limits=False, tolerance=1e-10):
+        """
+        Transition matrix of the joint.
+        Computed from the Denavit-Hartenberg parameters.
+
+        For more details, see :
+
+        https://en.wikipedia.org/wiki/Denavit%E2%80%93Hartenberg_parameters
+
+        Parameters
+        ----------
+
+        consider_limits : bool
+            If  True,  the  transition matrices ensure it's not possible to go
+            beyond  self.pmin and self.pmax. This results adding
+            max  and  min  functions in the transition matrix. For example, if
+            the  degree  of  freedom is d and consider_limits is True, every d
+            value will become :
+                min(max(d, self.pmin), self.pmax)
+            (if the limits are not None).
+
+            This can cause derivation  problems so you can disable this option
+            turning consider_limits to  False.
+
+            Defaults to False
+
+        tolerance : float
+            Tolerance for simplification of the expression.
+
+            Defaults to 1e-10
+
+        Returns
+        -------
+        sympy.matrices.immutable.ImmutableDenseMatrix
+            Transformation  matrix  from  the parent link to the child link in
+            homogeneous coordinates. The shape is (4, 4)
+
+        """
+
+        T = Matrix([[1, 0, 0, 0],
+                    [0, 1, 0, 0],
+                    [0, 0, 1, 0],
+                    [0, 0, 0, 1]])
+
+        # Finding the degree of freedom ......................................
+
+        subs = {"d":     self.__d,
+                "theta": self.__theta,
+                "r":     self.__r,
+                "alpha": self.__alpha}
+
+        # Considering limits if asked
+        for sym in subs:
+            if type(subs[sym]) != float:
+
+                if consider_limits and self.pmin is not None:
+                    subs[sym] = Max(subs[sym], self.pmin)
+                if consider_limits and self.pmax is not None:
+                    subs[sym] = Min(subs[sym], self.pmax)
+                break
+
+        val = Symbol("__k__")
+        c = cos(val)
+        s = sin(val)
+
+        matrices = {"TransX": Matrix([[1, 0, 0, val],
+                                      [0, 1, 0, 0],
+                                      [0, 0, 1, 0],
+                                      [0, 0, 0, 1]]),
+                    "TransZ": Matrix([[1, 0, 0, 0],
+                                      [0, 1, 0, 0],
+                                      [0, 0, 1, val],
+                                      [0, 0, 0, 1]]),
+                    "RotX": Matrix([[1, 0, 0, 0],
+                                    [0, c, -s, 0],
+                                    [0, s, c, 0],
+                                    [0, 0, 0, 1]]),
+                    "RotZ": Matrix([[c, -s, 0, 0],
+                                    [s, c, 0, 0],
+                                    [0, 0, 1, 0],
+                                    [0, 0, 0, 1]])}
+
+        for transformation in self.__rot_trans:
+            trans, param = transformation.split("..")
+            T *= matrices[trans].subs(val, subs[param])
+
+        # A  bug  in  SymPy  is  not  rounding  float  values  if they are not
+        # multiplied  by  a  Symbol.  To  fix  this, we multiply T by a random
+        # Symbol, optimize and then divide by this Symbol.
+
+        debug_sym = Symbol('debug_symbol')
+
+        return nsimplify(T * debug_sym,
+                         tolerance=tolerance).evalf() / debug_sym
+
+    # Validation _____________________________________________________________
+
+    def valid(self):
+        super().valid()
+        return True
