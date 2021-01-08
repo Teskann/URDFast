@@ -564,8 +564,9 @@ class Language:
                 - type : str : Variable Type, can be 'double', 'vect' or 'mat'
                 - description : str : Parameter description (for doc string)
         
-        expr : str
+        expr : str or list of list of str
             Return value of the function (mathematical expression)
+            If your expression is a matrix, pass a list of list of str type.
         
         varss : list of list, optional
             Temporary variables. Default is []
@@ -576,7 +577,7 @@ class Language:
         matrix_dims : tuple of 2 ints, optional
             Dimensions of the return value
             If !=(1, 1) the parameters are converted to a vector of parameters
-            Default is (1, 1)
+            Default is (4, 4)
             
         input_is_vector : bool, optional
             If  True, the parameters are converted to an unique parameter that

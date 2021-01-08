@@ -70,13 +70,13 @@ def generate_code_from_sym_mat(sympy_matrix, fname,
     for elem in elems:
         code_mat.append(elem.split(','))
 
-    # 2 - Gertting function parameters .......................................
+    # 2 - Getting function parameters ........................................
 
     params = []
-    for symbol in sympy_matrix.free_symbols:
-        param = {}
-        param['name'] = str(symbol)
-        param['type'] = 'double'
+    syms = list(sympy_matrix.free_symbols)
+    syms.sort(key=lambda x: str(x))
+    for symbol in syms:
+        param = {'name': str(symbol), 'type': 'double'}
         category = param['name'].split('_')[0]
         descr = ''
         if category == 'd':
@@ -245,7 +245,8 @@ def generate_all_matrices(robot, list_ftm, list_btm,
 
 # Generate Forward Kinematics ________________________________________________
 
-def generate_fk(robot, origin, destination, language=Language('python')):
+def generate_fk(robot, origin, destination, optimization_level,
+                language=Language('python')):
     """
     Description
     -----------
@@ -279,6 +280,16 @@ def generate_fk(robot, origin, destination, language=Language('python')):
             considered Joint / Link in self.joints / self.links.
             
             Example : destination='link_0'
+
+    optimization_level : int
+        Optimization level of the generated code.
+            - 0 : Numeric  computation  of  FK  using  the transition matrices
+            functions
+            - 1 : Computes  directly  the  FK  without  using  the  transition
+            matrices functions, but the expression is not simplified
+            - 2 : Computes  directly  the  FK  without  using  the  transition
+            matrices  functions,  and the expression is simplified. This might
+            take a long time to compute for only a few gains compared to 1.
     
     language : Language.Language, optional
         Language you want the code to be generated to
@@ -294,9 +305,36 @@ def generate_fk(robot, origin, destination, language=Language('python')):
     """
 
     # Adding Title
-    code = language.title('Forward Kinematics from ' + origin + ' to ' + \
+    code = language.title('Forward Kinematics from ' + origin + ' to ' +
                           destination, 1)
     code += '\n\n'
+
+    # Function properties ....................................................
+
+    index_origin = int(origin.split('_')[1])
+    type_origin = origin.split('_')[0]
+    origin_name = robot.joints[index_origin].name if type_origin == 'joint' \
+        else robot.links[index_origin].name
+    index_dest = int(destination.split('_')[1])
+    type_dest = destination.split('_')[0]
+    dest_name = robot.joints[index_dest].name if type_dest == 'joint' \
+        else robot.links[index_dest].name
+    docstr = (f'Computes the forward kinematics from the {type_origin} '
+              f"{origin_name} to the {type_dest} {dest_name}. The result is "
+              f"returned as a 4x4 {language.matrix_type} in  homogeneous "
+              "coordinates, giving the position and the orientation of "
+              f"{dest_name} in the {origin_name} frame.")
+
+    fname = 'fk_' + origin_name + '_' + dest_name
+
+    # Optimised version ......................................................
+
+    if optimization_level > 0:
+        fk = robot.forward_kinematics(origin, destination,
+                                      optimize=optimization_level > 1)
+        return generate_code_from_sym_mat(fk, fname, language, docstr)
+
+    # Not optimised version ..................................................
 
     # 1 - Getting the path in the tree .......................................
 
@@ -460,21 +498,6 @@ def generate_fk(robot, origin, destination, language=Language('python')):
         if i_v < len(varss) - 1:
             expr += '@'
 
-    index_origin = int(origin.split('_')[1])
-    type_origin = origin.split('_')[0]
-    origin_name = robot.joints[index_origin].name if type_origin == 'joint' \
-        else robot.links[index_origin].name
-    index_dest = int(destination.split('_')[1])
-    type_dest = destination.split('_')[0]
-    dest_name = robot.joints[index_dest].name if type_dest == 'joint' \
-        else robot.links[index_dest].name
-    docstr = 'Computes the forward kinematics from the ' + type_origin + ' ' \
-             + origin_name + ' to the ' + type_dest + ' ' + dest_name + \
-             '. The result '
-    docstr += 'is returned as a 4x4 ' + language.matrix_type + ' in ' + \
-              'homogeneous coordinates.'
-
-    fname = 'fk_' + origin_name + '_' + dest_name
     code += language.generate_fct(fname, params, expr, varss, docstr,
                                   matrix_dims=(1, 1), input_is_vector=True)
 
@@ -538,7 +561,7 @@ def generate_all_fk(robot, list_origin, list_dest,
     code += '\n\n'
 
     for i, origin, in enumerate(list_origin):
-        code += generate_fk(robot, origin, list_dest[i], language=language)
+        code += generate_fk(robot, origin, list_dest[i], 1, language=language)
         if i < len(list_origin) - 1:
             code += '\n\n'
 
