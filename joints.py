@@ -1140,6 +1140,9 @@ class JointDH(Joint):
 
         Default is None
 
+    type : str
+        Joint type (prismatic, revolute, continuous, fixed)
+
     Example
     -------
 
@@ -1202,6 +1205,7 @@ class JointDH(Joint):
             self.pmax = None
             self.vmax = None
             self.amax = None
+            self.joint_type = "Fixed"
         # If there is a DoF
         else:
             self.pmin = dhparams.rows[joint_number].pmin
@@ -1209,6 +1213,15 @@ class JointDH(Joint):
             self.vmax = dhparams.rows[joint_number].vmax
             self.amax = dhparams.rows[joint_number].amax
 
+            # Alpha or theta are DoF
+            if any([type(x) != float for x in [self.__theta, self.__alpha]]):
+                if self.pmin is not None and self.pmax is not None:
+                    self.joint_type = "Revolute"
+                else:
+                    self.joint_type = "Continuous"
+            # r or d are DoF
+            else:
+                self.joint_type = "Prismatic"
         self.valid()
 
     # Transition Matrix ______________________________________________________

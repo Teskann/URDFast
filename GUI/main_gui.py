@@ -19,6 +19,7 @@ sys.path.insert(1, '../')
 
 import URDF
 import robots as cr
+from dh_params import dh
 
 from code_generator import generate_everything
 from Language import Language
@@ -973,7 +974,7 @@ def edit_polynomial_trajectory_condition(ui):
 
 # Update GUI State from Robot Object _________________________________________
 
-def init_gui_from_urdf(gui, robot):
+def init_gui_from_robot(gui, robot):
     """
     Description
     -----------
@@ -986,7 +987,7 @@ def init_gui_from_urdf(gui, robot):
     gui : main_window.Ui_MainWindow
         GUI to update
     
-    robot : createRobotFromURDF.robot
+    robot : robots.Robot
         Robot Object to update the GUI
     
     Global Variables Used
@@ -1230,19 +1231,25 @@ def open_file_dialog(gui, progress_bar):
     """
 
     # File dialog
-    fname, ftype = QFileDialog.getOpenFileName(caption="Open URDF File",
-                                               filter="URDF Files (*.urdf)" + \
-                                                      ";;All files (*)",
-                                               directory=path + '../Examples')
+    fname, ftype = QFileDialog\
+        .getOpenFileName(caption="Open URDF File",
+                         filter="Supported files (*.urdf *.dhparams)"
+                                ";;All files (*)",
+                         directory=path + '../Examples')
     if fname == '':
         return
     global robot_obj
     # Open the file
-    with open(fname) as file:
-        urdf_obj = URDF.URDF(file)
-        robot_obj = cr.Robot(urdf_obj, progress_bar)
+    if fname.split(".")[-1].lower() == "urdf":
+        with open(fname) as file:
+            urdf_obj = URDF.URDF(file)
+            robot_obj = cr.RobotURDF(urdf_obj, progress_bar)
 
-        init_gui_from_urdf(gui, robot_obj)
+    elif fname.split(".")[-1].lower() == "dhparams":
+        dh_obj = dh(fname)
+        robot_obj = cr.RobotDH(dh_obj)
+    init_gui_from_robot(gui, robot_obj)
+
 
 
 def update_settings(gui):

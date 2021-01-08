@@ -1,4 +1,3 @@
-## (This feature is still in development)
 # Denavit–Hartenberg Parameters File Format
 
 This is the documentation for the [Denavit–Hartenberg parameters](https://en.wikipedia.org/wiki/Denavit%E2%80%93Hartenberg_parameters)

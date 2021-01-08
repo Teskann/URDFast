@@ -185,7 +185,7 @@ class DHParams:
 
     """
 
-    def __init__(self, rot_trans, rows):
+    def __init__(self, rot_trans, rows, name):
         """
         Init the object
 
@@ -198,10 +198,14 @@ class DHParams:
 
         rows : list of DHParamsRow
             All the rows of the .dhparams file
+
+        name : str
+            Robot name
         """
 
         self.rot_trans = rot_trans
         self.rows = rows
+        self.name = name
 
     def __str__(self):
         """
@@ -226,7 +230,7 @@ class DHParams:
 
 # Parser _____________________________________________________________________
 
-def parse_dhparams(text):
+def parse_dhparams(text, name="DHRobot"):
     """
     Parse a .dhparams file content to create a Robot
 
@@ -237,21 +241,14 @@ def parse_dhparams(text):
     text : str
         Content of the .dhparams file
 
+    name : str
+        Robot name (optional, defaults to "DHRobot")
+
     Returns
     -------
 
     DHParams
         Object of the parsed file
-
-    Examples
-    --------
-
-    >>> filename = "./Examples/example_0.dhparams"
-    >>> obj = parse_dhparams(filename)
-
-    >>> filename = "./Examples/example_0.dhparams"
-    >>> obj = parse_dhparams(filename)
-
     """
 
     text = text.replace(" ", "")
@@ -408,7 +405,7 @@ def parse_dhparams(text):
 
     # Return the object ......................................................
 
-    return DHParams(rot_trans=trans, rows=rows)
+    return DHParams(rot_trans=trans, rows=rows, name=name)
 
 
 # Create the object from a file ______________________________________________
@@ -438,7 +435,9 @@ def dh(filename):
     """
 
     with open(filename, "r") as f:
-        return parse_dhparams(f.read())
+        filename = filename.replace("\\", '/')
+        name = ".".join(filename.split("/")[-1].split(".")[:-1])
+        return parse_dhparams(f.read(), name=name)
 
 # Main (running tests) _______________________________________________________
 

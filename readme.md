@@ -10,6 +10,8 @@ This tool features code generation for :
 * Jacobian Matrices (6 x n)
 * Center of Mass
 * Jacobian of the center of mass (3 x n)
+* Polynomial Trajectories generation
+* Denavit-Hartenberg parameters support
 
 The supported languages for code generation are currently :
 
@@ -71,6 +73,11 @@ The software use is pretty straight-forward, but you should take a look at the [
 If you like the project and you are a Python developer and/or fan of robotics, don't hesitate to contribute to it ! Check out the [documentation for developpement](./documentation/devdoc.md). Each function comes with its documentation so you can get into the project faster.
 
 Amazing features such as robot dynamics, torque control, control loops, C++ support are not supported yet, your help for this is welcome !
+
+## I use Denavit-Hartenberg parameters instead of URDF ...
+
+Don't worry ! You don't have to create an URDF file from your DH parameters !
+URDFast comes with a [full support of DH parameters](./documentation/dhparams_file_format.md) !
 
 ## Context & References
 

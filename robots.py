@@ -564,6 +564,7 @@ class RobotDH(Robot):
         """
 
         # Init Object attributes
+        self.name = dhparams_object.name
         self.links = []
         self.joints = []
         all_link_nodes = []
