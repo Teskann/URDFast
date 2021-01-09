@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file '.\main_window.ui'
+# Form implementation generated from reading ui file '..\main_window.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.2
 #
@@ -23,7 +23,7 @@ class Ui_MainWindow(object):
         MainWindow.setMaximumSize(QtCore.QSize(16777215, 16777215))
         MainWindow.setWindowTitle("URDFast - Code Generator from URDF")
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap(".\\Images/icon_cyan.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon.addPixmap(QtGui.QPixmap("..\\Images/icon_cyan.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         MainWindow.setWindowIcon(icon)
         MainWindow.setLocale(QtCore.QLocale(QtCore.QLocale.English, QtCore.QLocale.UnitedStates))
         self.centralwidget = QtWidgets.QWidget(MainWindow)
@@ -468,6 +468,7 @@ class Ui_MainWindow(object):
         self.comboBox_language.setObjectName("comboBox_language")
         self.comboBox_language.addItem("")
         self.comboBox_language.addItem("")
+        self.comboBox_language.addItem("")
         self.gridLayout_11.addWidget(self.comboBox_language, 0, 2, 1, 1)
         self.label_fname = QtWidgets.QLabel(self.tab_general)
         self.label_fname.setObjectName("label_fname")
@@ -708,6 +709,7 @@ class Ui_MainWindow(object):
         self.label_language.setText(_translate("MainWindow", "Language for code generation :"))
         self.comboBox_language.setItemText(0, _translate("MainWindow", "Julia"))
         self.comboBox_language.setItemText(1, _translate("MainWindow", "Python"))
+        self.comboBox_language.setItemText(2, _translate("MainWindow", "MATLAB"))
         self.label_fname.setText(_translate("MainWindow", "Output File Name :"))
         self.tabWidget_settings.setTabText(self.tabWidget_settings.indexOf(self.tab_general), _translate("MainWindow", "General"))
         self.label_python_max_line_length.setText(_translate("MainWindow", "Maximum line length :"))

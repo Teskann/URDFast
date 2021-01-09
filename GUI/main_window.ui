@@ -1272,6 +1272,11 @@ p, li { white-space: pre-wrap; }
                <string>Python</string>
               </property>
              </item>
+             <item>
+              <property name="text">
+               <string>MATLAB</string>
+              </property>
+             </item>
             </widget>
            </item>
            <item row="1" column="0">

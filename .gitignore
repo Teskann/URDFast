@@ -11,3 +11,4 @@
 /GUI/__pycache__/
 /generated/*.jl
 /generated/*.py
+/generated/*.m

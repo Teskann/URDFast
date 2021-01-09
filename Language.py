@@ -64,7 +64,7 @@ class Language:
         Example, for Python :
             "def function("
     
-    fct_suiffix : str
+    fct_suffix : str
         Function declaration suffix
         Example, for Python "):"
     
@@ -132,6 +132,7 @@ class Language:
             - / : division
             - + : addition
             - - : substraction
+            - [] : list  subscription. ("[]", "()", "<>" ... )
         Every  item  is  a  list of 2 elements containing the value and a bool
         that is True if the operator is written as a function.
     
@@ -168,9 +169,12 @@ class Language:
     subscription : int
         1 if the last index of the subscription is not included
 
+    return_ : str
+        Return statement of the language. For example, in Python "return"
+
     """
 
-    # Constructor ================================================================
+    # Constructor ============================================================
 
     def __init__(self, name):
         """
@@ -195,7 +199,7 @@ class Language:
             self.name = 'python'
 
             self.fct_prefix = "def _fname_("
-            self.fct_suiffix = "):"
+            self.fct_suffix = "):"
             self.fct_end = ""
             self.param_separator = ","
             self.max_line_length = 79
@@ -210,11 +214,12 @@ class Language:
             self.matrix_type = 'numpy.ndarray'
             self.can_return_list = True
             self.operators = {'**': ['**', False],
-                              '*': ['*', False],
-                              '@': ['dot', True],
-                              '/': ['/', False],
-                              '+': ['+', False],
-                              '-': ['-', False]}
+                              '*':  ['*', False],
+                              '@':  ['dot', True],
+                              '/':  ['/', False],
+                              '+':  ['+', False],
+                              '-':  ['-', False],
+                              "[]": ["[]", True]}
             self.fcts = {'eye': 'eye(__param1__, __param2__)',
                          'zeros': 'zeros((__param1__, __param2__))',
                          'cross': 'cross(__param1__, __param2__'}
@@ -230,11 +235,14 @@ class Language:
                           "array, cross, dot, zeros, eye\n"
 
             self.subscription = 1
+            self.return_ = "return"
+
+        # Julia ..............................................................
 
         elif name == "julia":
             self.name = 'julia'
             self.fct_prefix = "function _fname_("
-            self.fct_suiffix = ")"
+            self.fct_suffix = ")"
             self.fct_end = "end"
             self.param_separator = ","
             self.max_line_length = 92
@@ -253,7 +261,8 @@ class Language:
                               '@': ['*', False],
                               '/': ['/', False],
                               '+': ['+', False],
-                              '-': ['-', False]}
+                              '-': ['-', False],
+                              '[]': ['[]', True]}
             self.fcts = {'eye': 'Matrix(I,__param1__, __param2__)',
                          'zeros': 'zeros(__param1__, __param2__)',
                          'cross': 'cross(__param1__, __param2__'}
@@ -268,6 +277,49 @@ class Language:
             self.header = "using LinearAlgebra\n"
 
             self.subscription = 0
+            self.return_ = "return"
+
+        # MATLAB .............................................................
+
+        elif name == "matlab":
+            self.name = 'matlab'
+            self.fct_prefix = "function return_value = _fname_("
+            self.fct_suffix = ")"
+            self.fct_end = "end"
+            self.param_separator = ","
+            self.max_line_length = 75
+            self.comment_line = "%"
+            self.comment_par_beg = '%{\n'
+            self.comment_par_end = '\n%}'
+            self.indexing_0 = 1
+            self.end_of_line = ';'
+            self.is_typed = False
+            self.double_type = 'double'
+            self.vector_type = 'double'
+            self.matrix_type = 'double'
+            self.can_return_list = True
+            self.operators = {'**': ['.^', False],
+                              '*': ['.*', False],
+                              '@': ['*', False],
+                              '/': ['./', False],
+                              '+': ['+', False],
+                              '-': ['-', False],
+                              '[]': ['()', True]}
+            self.fcts = {'eye': 'eye(__param1__, __param2__)',
+                         'zeros': 'zeros(__param1__, __param2__)',
+                         'cross': 'cross(__param1__, __param2__'}
+            self.docstr_before = False
+            self.extension = 'm'
+            self.mat_obj_start = '['
+            self.mat_obj_end = ']'
+            self.mat_col_separator = ','
+            self.mat_line_separator = ';'
+            self.mat_new_line = ['', '']
+
+            self.header = ""
+
+            self.subscription = 0
+            self.return_ = "return_value ="
 
     def matrix(self, mat_list):
         """
@@ -357,7 +409,7 @@ class Language:
         -----------
         
         Converts  a  string  of a mathematical expression written in Python to
-        the same epression in the current language
+        the same expression in the current language
         
         Parameter
         ---------
@@ -433,6 +485,7 @@ class Language:
         expression = convert_all_sci_to_dbl(expression)
 
         list_op = [[op, False] for op in self.operators]
+        list_op[-1][1] = True  # Subscription is considered as a function
         list_new_ops = [self.operators[op] for op in self.operators]
 
         expression = replace_many(expression, list_op, list_new_ops)
@@ -633,7 +686,7 @@ class Language:
                 if i < len(params) - 1:
                     code += self.param_separator + ' '
 
-        code += self.fct_suiffix + '\n' + indent(1)
+        code += self.fct_suffix + '\n' + indent(1)
 
         # Docstring ..........................................................
 
@@ -729,7 +782,8 @@ class Language:
                 code += self.mat_line_separator if i < matrix_dims[0] - 1 \
                     else self.mat_obj_end
 
-            code += self.end_of_line + '\n\n    return ' + mat_name + \
+            code += self.end_of_line + f'\n\n    {self.return_} '\
+                    + mat_name + \
                     self.end_of_line + '\n' + self.fct_end
 
         # Scalar return ......................................................
@@ -739,8 +793,8 @@ class Language:
                 for i_p, param in enumerate(params):
                     expr = replace_var(expr, param['name'],
                                        f'q[{i_p + self.indexing_0}]')
-            code += 'return ' + self.convert(expr) + self.end_of_line + '\n' \
-                    + self.fct_end
+            code += self.return_ + ' ' + self.convert(expr) + \
+                    self.end_of_line + '\n' + self.fct_end
 
         return code
 
@@ -769,9 +823,12 @@ class Language:
             Title string
 
         """
-        code = self.comment_line + ' '
+        if self.name == "matlab" and level == 0:
+            code = "%% "
+        else:
+            code = self.comment_line + ' '
         if level == 0:
-            for _ in range(self.max_line_length - 2):
+            for _ in range(self.max_line_length - 2 - (self.name == "matlab")):
                 code += '-'
             code += '\n' + self.comment_line + ' |'
 
@@ -787,7 +844,7 @@ class Language:
             code += text.upper()
             for _ in range(right_spaces):
                 code += ' '
-            code += '|\n# '
+            code += f'|\n{self.comment_line} '
             for _ in range(self.max_line_length - 2):
                 code += '-'
 

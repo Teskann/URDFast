@@ -978,14 +978,14 @@ def get_tree(operations_list):
     Description
     -----------
     
-    Create  the  operations  /  functions  call  tree  from  a list of dift of
+    Create  the  operations  /  functions  call  tree  from  a list of dict of
     operations
     
     Parameter
     ---------
     
     operations_list : list of dict
-        List of all the operations from whiches you want to create the tree.
+        List of all the operations from which you want to create the tree.
         Every dict is formatted like this :
             'operator' : operator string or function name
             'operation' : dict formatted like this :
@@ -994,7 +994,7 @@ def get_tree(operations_list):
                 function
                 'str_val' : string value of the arguments / operands
                 'len' : length of the operation
-            'is_fct' : True if it is a funciton, false if it's an operator
+            'is_fct' : True if it is a function, false if it's an operator
     
     Returns
     -------
@@ -1095,7 +1095,7 @@ def render(operation_dict, parentheses=False):
                 function
                 'str_val' : string value of the arguments / operands
                 'len' : length of the operation
-            'is_fct' : True if it is a funciton, false if it's an operator
+            'is_fct' : True if it is a function, false if it's an operator
             
     Returns
     -------
@@ -1116,8 +1116,8 @@ def render(operation_dict, parentheses=False):
     if operation_dict['is_fct']:
 
         # Subscription
-        if '[]' in operation_dict['operator']:
-            string = operation_dict['operator'][:-2] + '['
+        if '[]' == operation_dict['priority']:
+            string = operation_dict['operator'][:-1]
 
         # Function name
         else:
@@ -1128,7 +1128,8 @@ def render(operation_dict, parentheses=False):
             string += arg
 
             if i == len(operation_dict['operation']['str_val']) - 1:
-                string += ']' if '[]' in operation_dict['operator'] else ')'
+                string += operation_dict['operator'][-1] \
+                    if '[]' == operation_dict['priority'] else ')'
             else:
                 string += ','
 
@@ -1384,6 +1385,11 @@ def replace_many(string, operators, new_operators):
 
     for i, operator in enumerate(operators):
         for op in all_op:
+            # Subscription : removing [] if () is the subscription format
+            if operator[0] == "[]" and op['operator'][-2:] == "[]":
+                op['operator'] = op['operator'] \
+                    .replace('[]', new_operators[i][0])
+                continue
             if op['operator'] == operator[0] and op['is_fct'] == operator[1]:
                 op['operator'] = new_operators[i][0]
                 op['is_fct'] = new_operators[i][1]
@@ -1649,7 +1655,7 @@ if __name__ == '__main__':
     test = replace(func_str, ['**', False], ['exp', True])
     print(func_str)
     func_str = "sin(cos(x)+[a[0],1])+sin(cos(x)+[a[0],1])+cos(x)+1"
-    func_str = "-2.58959520493816e-14*sin(theta_joint1)**4"
+    func_str = "test[3] + 4 * test(0)"
     print(find_everything(func_str))
     print(optimize(func_str, True))
     # print(test)

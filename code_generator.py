@@ -794,28 +794,28 @@ def generate_jacobian(robot, origin, destination,
                   'type': 'mat'})
 
     varss.append({'name': 'L',
-                  'value': f'p0-T[{language.indexing_0}:' + \
+                  'value': f'p0-T{language.operators["[]"][0][0]}{language.indexing_0}:' + \
                            f'{language.indexing_0 + 2 + language.subscription}' + \
-                           f',{language.indexing_0 + 3}]',
+                           f',{language.indexing_0 + 3}{language.operators["[]"][0][1]}',
                   'type': 'mat'})
 
     varss.append({'name': 'Z',
-                  'value': f'T[{language.indexing_0}:' + \
+                  'value': f'T{language.operators["[]"][0][0]}{language.indexing_0}:' + \
                            f'{language.indexing_0 + 2 + language.subscription},' + \
-                           f'{language.indexing_0 + 2}]',
+                           f'{language.indexing_0 + 2}{language.operators["[]"][0][1]}',
                   'type': 'mat'})
 
     # Compute Jacobian column 1:3
-    varss.append({'name': f'Jac[{language.indexing_0}:' + \
+    varss.append({'name': f'Jac{language.operators["[]"][0][0]}{language.indexing_0}:' + \
                           f'{language.indexing_0 + 2 + language.subscription},' + \
-                          f'{language.indexing_0}]',
+                          f'{language.indexing_0}{language.operators["[]"][0][1]}',
                   'value': 'cross(Z,L)',
                   'type': ''})
 
     # Compute Jacobian column 4:6
-    varss.append({'name': f'Jac[{language.indexing_0 + 3}:' + \
+    varss.append({'name': f'Jac{language.operators["[]"][0][0]}{language.indexing_0 + 3}:' + \
                           f'{language.indexing_0 + 5 + language.subscription}' + \
-                          f',{language.indexing_0}]',
+                          f',{language.indexing_0}{language.operators["[]"][0][1]}',
                   'value': 'Z',
                   'type': ''})
 
@@ -827,28 +827,28 @@ def generate_jacobian(robot, origin, destination,
 
         # Compute L
         varss.append({'name': 'L',
-                      'value': f'p0-T[{language.indexing_0}:' + \
+                      'value': f'p0-T{language.operators["[]"][0][0]}{language.indexing_0}:' + \
                                f'{language.indexing_0 + 2 + language.subscription}' + \
-                               f',{language.indexing_0 + 3}]',
+                               f',{language.indexing_0 + 3}{language.operators["[]"][0][1]}',
                       'type': ''})
         # Compute Z
         varss.append({'name': 'Z',
-                      'value': f'T[{language.indexing_0}:' + \
+                      'value': f'T{language.operators["[]"][0][0]}{language.indexing_0}:' + \
                                f'{language.indexing_0 + 2 + language.subscription}' + \
-                               f',{language.indexing_0 + 2}]',
+                               f',{language.indexing_0 + 2}{language.operators["[]"][0][1]}',
                       'type': ''})
 
         # Compute Jacobian column 1:3
-        varss.append({'name': f'Jac[{language.indexing_0}:' + \
+        varss.append({'name': f'Jac{language.operators["[]"][0][0]}{language.indexing_0}:' + \
                               f'{language.indexing_0 + 2 + language.subscription}' + \
-                              f',{language.indexing_0 + i}]',
+                              f',{language.indexing_0 + i}{language.operators["[]"][0][1]}',
                       'value': 'cross(Z,L)',
                       'type': ''})
 
         # Compute Jacobian column 4:6
-        varss.append({'name': f'Jac[{language.indexing_0 + 3}:' + \
+        varss.append({'name': f'Jac{language.operators["[]"][0][0]}{language.indexing_0 + 3}:' + \
                               f'{language.indexing_0 + 5 + language.subscription}' + \
-                              f',{language.indexing_0 + i}]',
+                              f',{language.indexing_0 + i}{language.operators["[]"][0][1]}',
                       'value': 'Z',
                       'type': ''})
 
@@ -1280,24 +1280,24 @@ def generate_com_jacobian(robot, language=Language('python')):
             varss.append(var)
             l_type = '' if l_declared else 'vect'
             var_l = {'name': 'L',
-                     'value': f'com0[{language.indexing_0}:' + \
+                     'value': f'com0{language.operators["[]"][0][0]}{language.indexing_0}:' + \
                               f'{language.indexing_0 + 2 + language.subscription}' + \
                               f']-com[{language.indexing_0}:' + \
-                              f'{language.indexing_0 + 2 + language.subscription}]',
+                              f'{language.indexing_0 + 2 + language.subscription}{language.operators["[]"][0][1]}',
                      'type': l_type}
             l_declared = True
             varss.append(var_l)
             z_type = '' if z_declared else 'vect'
             var_z = {'name': 'Z',
-                     'value': f'T[{language.indexing_0}:' + \
+                     'value': f'T{language.operators["[]"][0][0]}{language.indexing_0}:' + \
                               f'{language.indexing_0 + 2 + language.subscription},' + \
-                              f'{language.indexing_0 + 2}]',
+                              f'{language.indexing_0 + 2}{language.operators["[]"][0][1]}',
                      'type': z_type}
             z_declared = True
             varss.append(var_z)
-            var_j = {'name': f'Jac[{language.indexing_0}:' + \
+            var_j = {'name': f'Jac{language.operators["[]"][0][0]}{language.indexing_0}:' + \
                              f'{language.indexing_0 + 2 + language.subscription}' + \
-                             f',{i_jac}]',
+                             f',{i_jac}{language.operators["[]"][0][1]}',
                      'value': 'cross(Z,L)',
                      'type': ''}
             varss.append(var_j)
@@ -1817,19 +1817,23 @@ def generate_everything(robot, list_ftm, list_btm, list_fk, list_jac, com,
     # Opening the file in write mode
 
     with open(filename + '.' + language.extension, 'w') as f:
-        header = "The code in file has been generated by URDFast Code " + \
-                 "Generator on " + datetime.now().strftime(
-                 "%m/%d/%Y, %H:%M:%S") + \
-                 ". Consider testing this code before using it as errors " \
-                 "remain " + \
-                 "possible. For more details, check out the github " \
-                 "repository " + \
-                 "of this project at https://github.com/Teskann/URDFast."
+        header = ("The code in this file has been generated by URDFast Code "
+                  "Generator on " + datetime.now()
+                  .strftime("%m/%d/%Y, %H:%M:%S") +
+                  ". Consider testing this code before using it as errors "
+                  "remain "
+                  "possible. For more details, check out the github "
+                  "repository "
+                  "of this project at https://github.com/Teskann/URDFast.")
 
-        code = language.comment_par_beg + '\n\n' + \
+        code = language.comment_par_beg + '\n' + \
                language.justify(header) + \
-               '\n\n' + language.comment_par_end + '\n\n' + \
+               '\n' + language.comment_par_end + '\n\n' + \
                language.header + '\n'
+
+        if language.name == "matlab":
+            code += f"\nclassdef {filename.split('/')[-1]}\nmethods(Static)\n"
+            code += "\n"
 
         code += generate_all_matrices(robot, list_ftm, list_btm, language)
 
@@ -1869,6 +1873,9 @@ def generate_everything(robot, list_ftm, list_btm, list_fk, list_jac, com,
                                                      language)
 
         code += '\n'
+
+        if language.name == "matlab":
+            code += "\nend\nend\n"
 
         f.write(code)
         f.close()
