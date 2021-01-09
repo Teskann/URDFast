@@ -230,7 +230,7 @@ class DHParams:
 
 # Parser _____________________________________________________________________
 
-def parse_dhparams(text, name="DHRobot"):
+def parse_dhparams(text, rob_name="DHRobot"):
     """
     Parse a .dhparams file content to create a Robot
 
@@ -241,7 +241,7 @@ def parse_dhparams(text, name="DHRobot"):
     text : str
         Content of the .dhparams file
 
-    name : str
+    rob_name : str
         Robot name (optional, defaults to "DHRobot")
 
     Returns
@@ -405,7 +405,7 @@ def parse_dhparams(text, name="DHRobot"):
 
     # Return the object ......................................................
 
-    return DHParams(rot_trans=trans, rows=rows, name=name)
+    return DHParams(rot_trans=trans, rows=rows, name=rob_name)
 
 
 # Create the object from a file ______________________________________________
@@ -437,7 +437,7 @@ def dh(filename):
     with open(filename, "r") as f:
         filename = filename.replace("\\", '/')
         name = ".".join(filename.split("/")[-1].split(".")[:-1])
-        return parse_dhparams(f.read(), name=name)
+        return parse_dhparams(f.read(), rob_name=name)
 
 # Main (running tests) _______________________________________________________
 
