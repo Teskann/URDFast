@@ -1824,7 +1824,7 @@ def generate_everything(robot, list_ftm, list_btm, list_fk, list_jac, com,
                  "remain " + \
                  "possible. For more details, check out the github " \
                  "repository " + \
-                 "of this projets at https://github.com/Teskann/URDFast."
+                 "of this project at https://github.com/Teskann/URDFast."
 
         code = language.comment_par_beg + '\n\n' + \
                language.justify(header) + \
