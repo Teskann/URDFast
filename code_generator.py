@@ -19,7 +19,8 @@ from anytree import PreOrderIter
 
 def generate_code_from_sym_mat(sympy_matrix, fname,
                                language=Language('python'),
-                               docstr=None):
+                               docstr=None,
+                               input_is_vector=False):
     """
     Description
     -----------
@@ -48,6 +49,12 @@ def generate_code_from_sym_mat(sympy_matrix, fname,
     docstr : str, optional
         Docstring of the function
         Default is None
+
+    input_is_vector : bool
+        Set  to  True if you want the parameters of the code of your matrix to
+        be passed as a vector instead of many variables.
+
+        Default is False.
         
     Returns
     -------
@@ -120,7 +127,8 @@ def generate_code_from_sym_mat(sympy_matrix, fname,
         params.append(param)
 
     r = language.generate_fct(fname, params, code_mat, varss=varss,
-                              docstr=docstr)
+                              docstr=docstr,
+                              input_is_vector=input_is_vector)
 
     return r
 
@@ -332,7 +340,8 @@ def generate_fk(robot, origin, destination, optimization_level,
     if optimization_level > 0:
         fk = robot.forward_kinematics(origin, destination,
                                       optimize=optimization_level > 1)
-        return generate_code_from_sym_mat(fk, fname, language, docstr)
+        return generate_code_from_sym_mat(fk, fname, language, docstr,
+                                          input_is_vector=True)
 
     # Not optimised version ..................................................
 
