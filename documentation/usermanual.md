@@ -2,7 +2,7 @@
 
 ## Installation
 
-### 1. Prerequisties : Python & Packages
+### 1. Prerequisites : Python & Packages
 
 *URDFast* is a Python program. You then need to have Python installed on your computer to run it. If you don't have Python yet, consider [installing it using Anaconda](https://www.anaconda.com/products/individual). Anaconda automatically installs a lot of amazing packages and some of them are needed to run this program. If you don't plan to start working with your own Python codes, a [classic installation](https://www.python.org/downloads/) is recommended as it will use less storage space. You will then need to install packages manually as shown below.
 
@@ -60,7 +60,7 @@ To open a file, simply click on the *OPEN URDF FILE* button at the top center or
 
 This should open a file dialog in the *Examples* directory. You can pick one of the files in here to try the software or open your own URDF file.
 
-File openning can take a few seconds, especially if you have exotic joints transformations. This is normal and if your OS says URDFast is not responding, just wait, it shouldn't have crashed. The progress bar at the bottom will give you an idea of the remaining time.
+File opening can take a few seconds, especially if you have exotic joints transformations. This is normal and if your OS says URDFast is not responding, just wait, it shouldn't have crashed. The progress bar at the bottom will give you an idea of the remaining time.
 
 ### Robot Information (left)
 
@@ -76,7 +76,7 @@ The "*Tree Representation*" tab displays the tree representation of the robot. T
 
 ### Code Generator (middle)
 
-This section is the heart of the software. It is where you select what you want to generate. It is composed of 4 tabs.
+This section is the heart of the software. It is where you select what you want to generate. It is composed of 5 tabs.
 
 #### Transition Matrices
 
@@ -165,7 +165,58 @@ where :
 * `X`, `Y` and `Z` are the cartesian coordinates of the center of mass in the world frame,
 * `Dk` represent the variable associated with the degree of freedom of the joint `k` for `k` in `{1, ... , N}`.
 
-Both the center of mass and the jacobian of the center of mass call transition matrices functions associated with all the joints having an impact on the center of mass position. **Make sure to generate these functions in the *Transition Matrices* tab or the code will call functions that are not defined**.
+Both the center of mass and the jacobian of the center of mass call transition matrices functions associated with all the joints having an impact in the center of mass position. **Make sure to generate these functions in the *Transition Matrices* tab or the code will call functions that are not defined**.
+
+#### Polynomial Trajectories
+
+In this section you can generate trajectories following a polynomial expression
+from some conditions.
+
+Click on `New Trajectory` to create a trajectory. You can rename it in the
+`Trajectory Name` input.
+
+To add a condition, click on `New Condition`. As you can see, the table has
+now a new row. You can now enter the condition you want referring to the
+mathematical formula in the bottom right-hand corner.
+
+For example, let's imagine you want to generate a trajectory `r` that follows
+these conditions :  null speed and acceleration at the beginning and at the end
+of the trajectory. You can express them as :
+* `r(0) = 0`
+* `r(1) = 1`
+* `dr/dt(0) = 0`
+* `dr/dt(1) = 0`
+* `d²r/dt²(0) = 0`
+* `d²r/dt²(1) = 0`
+
+You will then need 6 conditions with the following values :
+* `k=0   t=0   x=0`
+* `k=0   t=1   x=1`
+* `k=1   t=0   x=0`
+* `k=1   t=1   x=0`
+* `k=2   t=0   x=0`
+* `k=2   t=1   x=0`
+
+This also works with symbolic values in your trajectory. For example, if you
+want to generalize the last example with the following conditions :
+
+* `r(t0) = 0`
+* `r(tf) = 1`
+* `dr/dt(t0) = 0`
+* `dr/dt(tf) = 0`
+* `d²r/dt²(t0) = 0`
+* `d²r/dt²(tf) = 0`
+
+... write these conditions :
+
+* `k=0   t=t0   x=0`
+* `k=0   t=tf   x=1`
+* `k=1   t=t0   x=0`
+* `k=1   t=tf   x=0`
+* `k=2   t=t0   x=0`
+* `k=2   t=tf   x=0`
+
+Note : you can also give symbolic values to x, but not to k.
 
 ### Settings
 
@@ -175,12 +226,32 @@ Don't forget to click on *Apply* after you made your changes otherwise they won'
 
 ## Supported Files and Robot Types
 
-This program only supports XML URDF formatted files. XACRO files are not supported. If you don't know what is the URDF format, take a look at the [official documentation](http://wiki.ros.org/urdf/XML).
-Moreover, this program only supports **robots with a tree-like representation**. If you have loops in your physical architecture, it won't work because of infinite loops. This kind of robots may never be supported by this software as the tree representation is fundamental in the URDFast algorithms.
+Concerning URDF, this program only supports XML URDF formatted files. XACRO
+files are not supported.
+If you don't know what is the URDF format, take a look at the
+[official documentation](http://wiki.ros.org/urdf/XML).
+Moreover, this program only supports **robots with a tree-like representation**.
+If you have loops in your physical architecture, it won't work because of
+infinite loops. This kind of robots may never be supported by this software as
+the tree representation is fundamental in the URDFast algorithms.
 
-Try to avoid commented lines `<!--...-->` in your URDF file, as some parsing errors have been detected with this, for some reason. This should be patched in a future version. If you can't parse the file althrough it should be correct, try to keep only `<link>` and `<joint>` elements (they are the only one used by URDFast). If the parser keeps failing, consider reporting the bug.
+Try to avoid commented lines `<!--...-->` in your URDF file, as some parsing
+errors have been detected with this, for some reason. This should be patched
+in a future version. If you can't parse the file although it should be correct,
+try to keep only `<link>` and `<joint>` elements (they are the only one used by
+URDFast). If the parser keeps failing, consider reporting the bug.
 
-If you open a not-supported file, it will throw an error and this can lead to the program dies, depending on your operating system (errors are not handeled in the GUI yet).
+URDFast comes with its own format to work with
+[Denavit–Hartenberg parameters](https://en.wikipedia.org/wiki/Denavit%E2%80%93Hartenberg_parameters).
+If you are used to work with this instead of URDF, please read the 
+[dhparams file format documentation](./dhparams_file_format.md).
+
+Note that only chain robots are supported with this format and not robots having
+a tree architecture.
+
+If you open a not-supported file, it will throw an error and this can lead to
+the program dies, depending on your operating system (errors are not handled
+in the GUI yet).
 
 ## Generated Code
 
@@ -203,3 +274,12 @@ The other functions like `cos` or `sin` are imported from `math` package, which 
 The Julia generated code uses the [LinearAlgebra](https://docs.julialang.org/en/v1/stdlib/LinearAlgebra/) module to work with matrix computations. This package should be installed with Julia.
 
 [Here](../generated/Examples/test_robot.jl) is an example of what the generated code looks like running on `example_0.urdf` with the default settings.
+
+### MATLAB
+
+You don't need any add-on to run MATLAB code. All the functions are generated
+in a class as static methods, so there is no need to create one file per
+function.
+
+[Here](../generated/Examples/test_robot.m) is an example of what the generated
+code looks like running on `example_0.urdf` with the default settings.
