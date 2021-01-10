@@ -17,6 +17,7 @@ The supported languages for code generation are currently :
 
 * Python
 * Julia
+* MATLAB
 
 More languages and features will be added in future versions, make sure to check this repository frequently so you don't miss any update !
 
@@ -40,11 +41,7 @@ pip install anytree
 pip install PyQt5
 ```
 
-The others parkages used in this project should have been installed with Python. However, if you encounter a `ModuleNotFoundError` when running URDFast, consider installing the missing package running :
-
-```bash
-pip install <packageName>
-```
+The other packages used in this project should have been installed with Python.
 
 ### 2. Download URDFast
 

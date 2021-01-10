@@ -410,7 +410,7 @@ def generate_fk(robot, origin, destination, optimization_level,
             params_tmp.append(param)
             params.append(param)
 
-        val = 'T_' + joint.name + '_inv('
+        val = 'MATLAB_PREFIXT_' + joint.name + '_inv('
 
         params_tmp.sort(key=lambda x: x['name'])
 
@@ -421,7 +421,7 @@ def generate_fk(robot, origin, destination, optimization_level,
             else:
                 val += ')'
 
-        variable = {'name': 'T_' + str(up_joint_nb) + '_inv',
+        variable = {'name': 'MATLAB_PREFIXT_' + str(up_joint_nb) + '_inv',
                     'value': val,
                     'type': 'mat'}
         varss.append(variable)
@@ -479,7 +479,7 @@ def generate_fk(robot, origin, destination, optimization_level,
 
             params_tmp.append(param)
             params.append(param)
-        val = 'T_' + joint.name + '('
+        val = 'MATLAB_PREFIXT_' + joint.name + '('
 
         params_tmp.sort(key=lambda x: x['name'])
 
@@ -490,7 +490,7 @@ def generate_fk(robot, origin, destination, optimization_level,
             else:
                 val += ')'
 
-        variable = {'name': 'T_' + str(down_joint_nb),
+        variable = {'name': 'MATLAB_PREFIXT_' + str(down_joint_nb),
                     'value': val,
                     'type': 'mat'}
         varss.append(variable)
@@ -704,7 +704,7 @@ def generate_jacobian(robot, origin, destination,
             params_tmp.append(param)
             params.append(param)
 
-        val = 'T_' + joint.name + '_inv('
+        val = 'MATLAB_PREFIXT_' + joint.name + '_inv('
 
         params_tmp.sort(key=lambda x: x['name'])
 
@@ -715,7 +715,7 @@ def generate_jacobian(robot, origin, destination,
             else:
                 val += ')'
 
-        T_fcts.append(['T_' + str(up_joint_nb) + '_inv', val])
+        T_fcts.append(['MATLAB_PREFIXT_' + str(up_joint_nb) + '_inv', val])
 
     # Then downwards joints
     for down_joint_nb in downwards:
@@ -768,7 +768,7 @@ def generate_jacobian(robot, origin, destination,
 
             params_tmp.append(param)
             params.append(param)
-        val = 'T_' + joint.name + '('
+        val = 'MATLAB_PREFIXT_' + joint.name + '('
 
         params_tmp.sort(key=lambda x: x['name'])
 
@@ -779,7 +779,7 @@ def generate_jacobian(robot, origin, destination,
             else:
                 val += ')'
 
-        T_fcts.append(['T_' + str(down_joint_nb), val])
+        T_fcts.append(['MATLAB_PREFIXT_' + str(down_joint_nb), val])
 
     # Jacobian variables .....................................................
 
@@ -1112,7 +1112,7 @@ def generate_com(robot, language=Language('python')):
 
                 params_tmp.append(param)
                 params.append(param)
-            T_fct = 'T_' + joint.name + '('
+            T_fct = 'MATLAB_PREFIXT_' + joint.name + '('
 
             params_tmp.sort(key=lambda x: x['name'])
 
@@ -1123,13 +1123,13 @@ def generate_com(robot, language=Language('python')):
             T_fct += ')'
 
             if len(robot.links[joint.child].parent_joints) > 1:
-                var2 = {'name': f'T_{obj_nb}',
+                var2 = {'name': f'MATLAB_PREFIXT_{obj_nb}',
                         'value': f'T@{T_fct}',
                         'type': 'mat'}
                 varss.append(var2)
                 saved_joints_T.append(obj_nb)
                 var = {'name': 'T',
-                       'value': f'T_{obj_nb}',
+                       'value': f'MATLAB_PREFIXT_{obj_nb}',
                        'type': ''}
                 varss.append(var)
 
@@ -1137,7 +1137,7 @@ def generate_com(robot, language=Language('python')):
                      saved_joints_T):
                 num = robot.links[joint.parent].child_joints[0]
                 var = {'name': 'T',
-                       'value': f'T_{num}@{T_fct}',
+                       'value': f'MATLAB_PREFIXT_{num}@{T_fct}',
                        'type': ''}
                 varss.append(var)
             else:
@@ -1357,7 +1357,7 @@ def generate_com_jacobian(robot, language=Language('python')):
 
                 params_tmp.append(param)
                 params.append(param)
-            T_fct = 'T_' + joint.name + '('
+            T_fct = 'MATLAB_PREFIXT_' + joint.name + '('
 
             params_tmp.sort(key=lambda x: x['name'])
 
@@ -1369,13 +1369,13 @@ def generate_com_jacobian(robot, language=Language('python')):
                     T_fct += ')'
 
             if len(robot.links[joint.child].parent_joints) > 1:
-                var2 = {'name': f'T_{obj_nb}',
+                var2 = {'name': f'MATLAB_PREFIXT_{obj_nb}',
                         'value': f'T@{T_fct}',
                         'type': 'mat'}
                 varss.append(var2)
                 saved_joints_T.append(obj_nb)
                 var = {'name': 'T',
-                       'value': f'T_{obj_nb}',
+                       'value': f'MATLAB_PREFIXT_{obj_nb}',
                        'type': ''}
                 varss.append(var)
 
@@ -1383,7 +1383,7 @@ def generate_com_jacobian(robot, language=Language('python')):
                      saved_joints_T):
                 num = robot.links[joint.parent].child_joints[0]
                 var = {'name': 'T',
-                       'value': f'T_{num}@{T_fct}',
+                       'value': f'MATLAB_PREFIXT_{num}@{T_fct}',
                        'type': ''}
                 varss.append(var)
             else:
@@ -1876,6 +1876,10 @@ def generate_everything(robot, list_ftm, list_btm, list_fk, list_jac, com,
 
         if language.name == "matlab":
             code += "\nend\nend\n"
+            code = code.replace("MATLAB_PREFIX",
+                                f"{filename.split('/')[-1]}.")
+        else:
+            code = code.replace("MATLAB_PREFIX", "")
 
         f.write(code)
         f.close()

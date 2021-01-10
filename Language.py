@@ -478,10 +478,6 @@ class Language:
 
         # . . . . . . . . . . . . . .
 
-        if expression.replace(' ',
-                              '') == '(-0.035*sin(theta_CHEST_R_SFE_joint)**2+0.0625*sin(2*theta_CHEST_R_SFE_joint)+0.035)/cos(theta_CHEST_R_SFE_joint)':
-            print('stop')
-
         expression = convert_all_sci_to_dbl(expression)
 
         list_op = [[op, False] for op in self.operators]
@@ -517,7 +513,7 @@ class Language:
 
     # Justifying docstring ===================================================
 
-    def justify(self, docstring):
+    def justify(self, docstring, is_a_paragraph=True):
         """
         Description
         -----------
@@ -529,6 +525,13 @@ class Language:
         
         docstring : str
             Docstring to justify
+
+        is_a_paragraph : bool
+            Set  to  True  if the  text  you want to justify is commented as a
+            paragraph.  If  False, it will be commented as many lines preceded
+            by a comment character.
+
+            Default is True
             
         Returns
         -------
@@ -557,6 +560,8 @@ class Language:
                     i_c += 1
 
                 max_len = self.max_line_length - ind
+                if not is_a_paragraph:
+                    max_len -= len(self.comment_line) + 1
 
                 all_words = []
                 all_w = line.split(' ')
@@ -593,7 +598,11 @@ class Language:
                 all_lines[i] = ' ' * ind + new_line
                 all_lines.insert(i + 1, ' ' * ind + rest_of_line)
 
-        return '\n'.join(all_lines)
+        if is_a_paragraph:
+            join_char = "\n"
+        else:
+            join_char = "\n" + self.comment_line + " "
+        return join_char[1:] + join_char.join(all_lines)
 
     # Generate function code =================================================
 
@@ -692,13 +701,18 @@ class Language:
 
         real_docstr = ''
         if docstr is not None:
-            real_docstr += self.comment_par_beg
+            if self.name != "matlab":
+                real_docstr += self.comment_par_beg
             if self.name == 'julia':
                 docstr = docstr.replace('\\', '\\\\')
+
+            if self.name in ['matlab', 'julia']:
                 real_docstr += '\n    ' + \
                                ' '.join(code.split('\n')[0].split(' ')[1:])
                 real_docstr += '\n'
-            if self.name in ['python', 'julia']:
+            if self.name == "matlab":
+                real_docstr += fname + "\n"
+            if self.name in ['python', 'julia', 'matlab']:
                 real_docstr += '\nDescription\n-----------\n\n' + docstr
                 real_docstr += '\n\nParameters\n----------\n\n'
                 for param in docstrparams:
@@ -709,14 +723,17 @@ class Language:
                     real_docstr += ' : ' + typ + '\n    '
                     real_docstr += param['description'] + '\n\n'
 
-            real_docstr += self.comment_par_end
+            if self.name != "matlab":
+                real_docstr += self.comment_par_end
+
+            par = self.name != "matlab"
 
             if self.docstr_before:
-                real_docstr = self.justify(real_docstr)
+                real_docstr = self.justify(real_docstr, is_a_paragraph=par)
                 code = real_docstr + '\n' + code + '\n    '
             else:
                 real_docstr = self.justify(
-                    real_docstr.replace('\n', '\n    '))
+                    real_docstr.replace('\n', '\n    '), is_a_paragraph=par)
                 code += real_docstr + '\n\n    '
 
         # Variables ..........................................................
