@@ -5,7 +5,7 @@ Robot Objects
 
 from anytree import Node, RenderTree, Walker
 from URDF import URDF
-from sympy import Matrix, simplify
+from sympy import Matrix, zeros, factor
 from joints import JointURDF, JointDH
 from links import LinkURDF, LinkDH
 from dh_params import dh
@@ -44,6 +44,18 @@ class Robot:
                 joint_k
             where k is the number of the Link/Joint in the list links/joints
 
+    saved_fk : dict of dict of sympy.matrices.dense.MutableDenseMatrix
+        Variable saving the forward kinematics that have already been computed
+        before  to  save time if there is a need to compute it again. The keys
+        of  the  first dict are the origins and the keys of the second are the
+        destinations.
+
+    saved_jac : dict of dict of sympy.matrices.dense.MutableDenseMatrix
+        Variable  saving  the jacobians that have already been computed before
+        to  save  time if there is a need to compute it again. The keys of the
+        first  dict  are  the  origins  and  the  keys  of  the second are the
+        destinations.
+
     """
 
     # Data ===================================================================
@@ -59,6 +71,12 @@ class Robot:
 
     # Tree representation
     tree = None
+
+    # Saved FK
+    saved_fk = {}
+
+    # Saved Jacobians
+    saved_jac = {}
 
     # Methods ================================================================
 
@@ -257,6 +275,12 @@ class Robot:
             The shape of the matrix is (4x4)
         """
 
+        # 0 - Check if it has already been computed ..........................
+
+        if origin in self.saved_fk.keys():
+            if destination in self.saved_fk[origin].keys():
+                return self.saved_fk[origin][destination]
+
         # 1 - Getting the path in the tree ...................................
 
         upwards, downwards = self.branch(origin, destination)
@@ -278,37 +302,49 @@ class Robot:
             T *= self.joints[down_joint_nb].T
 
         T = T.factor().evalf().nsimplify(tolerance=1e-10).evalf()
-        return T.simplify().nsimplify(tolerance=1e-10).evalf() if optimize \
-            else T
+        if optimize:
+            T = T.simplify().nsimplify(tolerance=1e-10).evalf()
 
-    # Cartesian Jacobian _____________________________________________________
+        # Save the FK
+        if origin not in self.saved_fk.keys():
+            self.saved_fk[origin] = {}
+        self.saved_fk[origin][destination] = T
 
-    def jacobian_3xN(self, origin, destination):
+        return T
+
+    # Geometric Jacobian _____________________________________________________
+
+    def jacobian(self, origin, destination, optimization_level):
         """
         Description
         -----------
         
-        Returns the Cartesian Jacobian between the origin and the destination.
+        Returns the Geometric Jacobian between the origin and the destination.
         
         The Jacobian is given by the formula :
             
                   /                             \
                  | dx/dDOF_0    ...    dx/dDOF_n |
-            Jx = | dy/dDOF_0    ...    dy/dDOF_n |
-                 | dz/dDOF_0    ...    dz/dDOF_n |
+                 | dy/dDOF_0    ...    dy/dDOF_n |
+             J = | dz/dDOF_0    ...    dz/dDOF_n |
+                 | dr/dDOF_0    ...    dr/dDOF_n |
+                 | dp/dDOF_0    ...    dp/dDOF_n |
+                 | dY/dDOF_0    ...    dY/dDOF_n |
                   \                             /
                   
         where  dx,  dy  and  dz  are  the  differentiation  of  the  cartesian
         coordinates of the destination frame in the origin frame,
+
+        dr/dDOF_k, dp/dDOF_k and dY/dDOF_k are the angular velocities,
         
         dDOF_k is the differentiation of the kth degree of freedom encountered
         in  the  kinematics  chain  from  origin  to destination in alphabetic
         order,
         
-        n  is  the  total  number of DOF in the kinematic chain from origin to
+        N  is  the  total  number of DOF in the kinematic chain from origin to
         destination,
         
-        Jx is a 3xN matrix representing the Jacobian.
+        J is a 6xN matrix representing the Jacobian.
         
         This  can  be  seen  as  the  Jacobian  of the position of the forward
         kinematics from origin to destination  (it's the ways it's computed).
@@ -334,6 +370,10 @@ class Robot:
                 considered Joint / Link in self.joints / self.links.
                 
                 Example : destination='link_0'
+        optimization_level : int
+            0 or 1 => The Jacobian is not simplified at all
+            2 => The Jacobian is factored
+            3 => The Jacobian is simplified
 
         Returns
         -------
@@ -341,10 +381,16 @@ class Robot:
             Jacobian matrix between origin and destination
             
         list_symbols : list of sympy.core.symbol.Symbol
-            List of all the derivatives variables (DOF_k) (alphabetic order)
+            List of all the derivatives variables (DOF_k) (alphabetical order)
             The kth element of this list is the DOF_k of the Jacobian
 
         """
+
+        # 0 - Check if it has already been computed ..........................
+
+        if origin in self.saved_jac.keys():
+            if destination in self.saved_jac[origin].keys():
+                return self.saved_jac[origin][destination]
 
         fk = self.forward_kinematics(origin, destination)
 
@@ -355,8 +401,28 @@ class Robot:
         list_symbols.sort(key=lambda sym: sym.name)
 
         Jx = fk[0:3, 3].jacobian(list_symbols)
+        Jo = zeros(*Jx.shape)
+        upwards, downwards = self.branch(origin, destination)
 
-        return simplify(Jx), list_symbols
+        for i, j_nb in enumerate(upwards + downwards):
+            if self.joints[j_nb].joint_type.lower() in ["continuous",
+                                                        "revolute"]:
+                Jo[0:3, i] = self.forward_kinematics(origin, f"joint_{j_nb}",
+                                                     optimize=False)[0:3, 2]
+
+        JJ = Matrix([[Jx], [Jo]])
+
+        if optimization_level > 1:
+            JJ = factor(JJ).evalf().nsimplify(tolerance=1e-10).evalf()
+        if optimization_level > 2:
+            JJ = JJ.simplify().nsimplify(tolerance=1e-10).evalf()
+
+        # Save the Jac
+        if origin not in self.saved_jac.keys():
+            self.saved_jac[origin] = {}
+        self.saved_jac[origin][destination] = (JJ, list_symbols)
+
+        return JJ, list_symbols
 
     # Converting to String ___________________________________________________
 
@@ -519,6 +585,9 @@ class RobotURDF(Robot):
         # Setting Global Tree
         self.tree = RenderTree(all_link_nodes[root_link_id])
 
+        self.saved_fk = {}
+        self.saved_jac = {}
+
 
 # ----------------------------------------------------------------------------
 # | DH params robot                                                          |
@@ -586,6 +655,9 @@ class RobotDH(Robot):
                                        parent=all_joint_nodes[-1]))
 
         self.tree = RenderTree(all_link_nodes[0])
+
+        self.saved_fk = {}
+        self.saved_jac = {}
 
 
 # ----------------------------------------------------------------------------

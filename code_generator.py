@@ -128,7 +128,8 @@ def generate_code_from_sym_mat(sympy_matrix, fname,
 
     r = language.generate_fct(fname, params, code_mat, varss=varss,
                               docstr=docstr,
-                              input_is_vector=input_is_vector)
+                              input_is_vector=input_is_vector,
+                              matrix_dims=(len(code_mat), len(code_mat[0])))
 
     return r
 
@@ -580,7 +581,7 @@ def generate_all_fk(robot, list_origin, list_dest,
 # Generate Jacobian Function _________________________________________________
 
 def generate_jacobian(robot, origin, destination,
-                      language=Language('python')):
+                      language=Language('python'), optimization_level=2):
     """
     Description
     -----------
@@ -619,7 +620,14 @@ def generate_jacobian(robot, origin, destination,
     
     language : Language.Language, optional
         Language you want the code to be generated to
-        Defalut is Language('python')
+        Default is Language('python')
+
+    optimization_level : int
+        - 0 => Jacobian is computed numerically (fastest to generate, slowest
+        code
+        - 1 => Jacobian is computed analytically but is not simplified
+        - 2 => Jacobian is computed analytically and is factored
+        - 3 => Jacobian is computed analytically and is simplified
         
     Returns
     -------
@@ -631,97 +639,237 @@ def generate_jacobian(robot, origin, destination,
     """
 
     # Adding Title
-    code = language.title('Jacobian of the ' + destination + ' position ' + \
+    code = language.title('Jacobian of the ' + destination + ' position ' +
                           'and orientation', 1)
     code += '\n\n'
-
-    # 1 - Getting the path in the tree .......................................
-
-    upwards, downwards = robot.branch(origin, destination)
-
-    # 2 - Getting the matrix .................................................
-
-    # Intermediate variables
-    varss = []
+    jac = None
 
     # Jacobian function parameters
     params = []
 
-    T_fcts = []
+    if optimization_level == 0:
 
-    # First upwards joints
-    for up_joint_nb in upwards:
-        joint = robot.joints[up_joint_nb]
+        # 1 - Getting the path in the tree ...................................
 
-        # Paramters
-        all_sym = joint.T.free_symbols
-        params_tmp = []
-        for symbol in all_sym:
+        upwards, downwards = robot.branch(origin, destination)
 
-            param = {}
-            param['name'] = str(symbol)
-            param['type'] = 'double'
-            category = param['name'].split('_')[0]
-            descr = ''
-            if category == 'd':
-                descr += 'Translation value (in meters) along the '
-                descr += param['name'][2:] + ' prismatic joint axis.'
+        # 2 - Getting the matrix .............................................
 
-            elif category == 'dx':
-                descr += 'Translation value (in meters) along the X axis of '
-                descr += 'the ' + param['name'][3:] + ' joint.'
+        # Intermediate variables
+        varss = []
 
-            elif category == 'dy':
-                descr += 'Translation value (in meters) along the Y axis of '
-                descr += 'the ' + param['name'][3:] + ' joint.'
 
-            elif category == 'dz':
-                descr += 'Translation value (in meters) along the Z axis of '
-                descr += 'the ' + param['name'][3:] + ' joint.'
 
-            elif category == 'dz':
-                descr += 'Translation value (in meters) along the Z axis of '
-                descr += 'the ' + param['name'][3:] + ' joint.'
+        T_fcts = []
 
-            elif category == 'theta':
-                descr += 'Rotation value (in radians) around the '
-                descr += param['name'][6:] + ' joint axis.'
+        # First upwards joints
+        for up_joint_nb in upwards:
+            joint = robot.joints[up_joint_nb]
 
-            elif category == 'roll':
-                descr += 'Rotation value (in radians) around the X axis of '
-                descr += 'the ' + param['name'][5:] + ' joint.'
+            # Paramters
+            all_sym = joint.T.free_symbols
+            params_tmp = []
+            for symbol in all_sym:
 
-            elif category == 'pitch':
-                descr += 'Rotation value (in radians) around the Y axis of '
-                descr += 'the ' + param['name'][6:] + ' joint.'
+                param = {}
+                param['name'] = str(symbol)
+                param['type'] = 'double'
+                category = param['name'].split('_')[0]
+                descr = ''
+                if category == 'd':
+                    descr += 'Translation value (in meters) along the '
+                    descr += param['name'][2:] + ' prismatic joint axis.'
 
-            elif category == 'yaw':
-                descr += 'Rotation value (in radians) around the Z axis of '
-                descr += 'the ' + param['name'][4:] + ' joint.'
+                elif category == 'dx':
+                    descr += 'Translation value (in meters) along the X axis of '
+                    descr += 'the ' + param['name'][3:] + ' joint.'
 
-            param['description'] = descr
+                elif category == 'dy':
+                    descr += 'Translation value (in meters) along the Y axis of '
+                    descr += 'the ' + param['name'][3:] + ' joint.'
 
-            params_tmp.append(param)
-            params.append(param)
+                elif category == 'dz':
+                    descr += 'Translation value (in meters) along the Z axis of '
+                    descr += 'the ' + param['name'][3:] + ' joint.'
 
-        val = 'MATLAB_PREFIXT_' + joint.name + '_inv('
+                elif category == 'dz':
+                    descr += 'Translation value (in meters) along the Z axis of '
+                    descr += 'the ' + param['name'][3:] + ' joint.'
 
-        params_tmp.sort(key=lambda x: x['name'])
+                elif category == 'theta':
+                    descr += 'Rotation value (in radians) around the '
+                    descr += param['name'][6:] + ' joint axis.'
 
-        for i_p, par in enumerate(params_tmp):
-            val += par['name']
-            if i_p < len(params_tmp) - 1:
-                val += ','
-            else:
-                val += ')'
+                elif category == 'roll':
+                    descr += 'Rotation value (in radians) around the X axis of '
+                    descr += 'the ' + param['name'][5:] + ' joint.'
 
-        T_fcts.append(['MATLAB_PREFIXT_' + str(up_joint_nb) + '_inv', val])
+                elif category == 'pitch':
+                    descr += 'Rotation value (in radians) around the Y axis of '
+                    descr += 'the ' + param['name'][6:] + ' joint.'
 
-    # Then downwards joints
-    for down_joint_nb in downwards:
-        joint = robot.joints[down_joint_nb]
-        # Parameters
-        all_sym = joint.T.free_symbols
+                elif category == 'yaw':
+                    descr += 'Rotation value (in radians) around the Z axis of '
+                    descr += 'the ' + param['name'][4:] + ' joint.'
+
+                param['description'] = descr
+
+                params_tmp.append(param)
+                params.append(param)
+
+            val = 'MATLAB_PREFIXT_' + joint.name + '_inv('
+
+            params_tmp.sort(key=lambda x: x['name'])
+
+            for i_p, par in enumerate(params_tmp):
+                val += par['name']
+                if i_p < len(params_tmp) - 1:
+                    val += ','
+                else:
+                    val += ')'
+
+            T_fcts.append(['MATLAB_PREFIXT_' + str(up_joint_nb) + '_inv', val])
+
+        # Then downwards joints
+        for down_joint_nb in downwards:
+            joint = robot.joints[down_joint_nb]
+            # Parameters
+            all_sym = joint.T.free_symbols
+            params_tmp = []
+            for symbol in all_sym:
+
+                param = {'name': str(symbol), 'type': 'double'}
+                category = param['name'].split('_')[0]
+                descr = ''
+                if category == 'd':
+                    descr += 'Translation value (in meters) along the '
+                    descr += param['name'][2:] + ' prismatic joint axis.'
+
+                elif category == 'dx':
+                    descr += 'Translation value (in meters) along the X axis of '
+                    descr += 'the ' + param['name'][3:] + ' joint.'
+
+                elif category == 'dy':
+                    descr += 'Translation value (in meters) along the Y axis of '
+                    descr += 'the ' + param['name'][3:] + ' joint.'
+
+                elif category == 'dz':
+                    descr += 'Translation value (in meters) along the Z axis of '
+                    descr += 'the ' + param['name'][3:] + ' joint.'
+
+                elif category == 'dz':
+                    descr += 'Translation value (in meters) along the Z axis of '
+                    descr += 'the ' + param['name'][3:] + ' joint.'
+
+                elif category == 'theta':
+                    descr += 'Rotation value (in radians) around the '
+                    descr += param['name'][6:] + ' joint axis.'
+
+                elif category == 'roll':
+                    descr += 'Rotation value (in radians) around the X axis of '
+                    descr += 'the ' + param['name'][5:] + ' joint.'
+
+                elif category == 'pitch':
+                    descr += 'Rotation value (in radians) around the Y axis of '
+                    descr += 'the ' + param['name'][6:] + ' joint.'
+
+                elif category == 'yaw':
+                    descr += 'Rotation value (in radians) around the Z axis of '
+                    descr += 'the ' + param['name'][4:] + ' joint.'
+
+                param['description'] = descr
+
+                params_tmp.append(param)
+                params.append(param)
+            val = 'MATLAB_PREFIXT_' + joint.name + '('
+
+            params_tmp.sort(key=lambda x: x['name'])
+
+            for i_p, par in enumerate(params_tmp):
+                val += par['name']
+                if i_p < len(params_tmp) - 1:
+                    val += ','
+                else:
+                    val += ')'
+
+            T_fcts.append(['MATLAB_PREFIXT_' + str(down_joint_nb), val])
+
+        # Jacobian variables .....................................................
+
+        nb_dof = len(params)
+
+        varss.append({'name': 'Jac',
+                      'value': f"_zeros_6_{nb_dof}_",
+                      'type': 'mat'})
+
+        varss.append({'name': 'T',
+                      'value': f'{T_fcts[0][1]}',
+                      'type': 'mat'})
+
+        varss.append({'name': 'L',
+                      'value': f'p0-T{language.operators["[]"][0][0]}{language.indexing_0}:' + \
+                               f'{language.indexing_0 + 2 + language.subscription}' + \
+                               f',{language.indexing_0 + 3}{language.operators["[]"][0][1]}',
+                      'type': 'mat'})
+
+        varss.append({'name': 'Z',
+                      'value': f'T{language.operators["[]"][0][0]}{language.indexing_0}:' + \
+                               f'{language.indexing_0 + 2 + language.subscription},' + \
+                               f'{language.indexing_0 + 2}{language.operators["[]"][0][1]}',
+                      'type': 'mat'})
+
+        # Compute Jacobian column 1:3
+        varss.append({'name': f'Jac{language.operators["[]"][0][0]}{language.indexing_0}:' + \
+                              f'{language.indexing_0 + 2 + language.subscription},' + \
+                              f'{language.indexing_0}{language.operators["[]"][0][1]}',
+                      'value': 'cross(Z,L)',
+                      'type': ''})
+
+        # Compute Jacobian column 4:6
+        varss.append({'name': f'Jac{language.operators["[]"][0][0]}{language.indexing_0 + 3}:' + \
+                              f'{language.indexing_0 + 5 + language.subscription}' + \
+                              f',{language.indexing_0}{language.operators["[]"][0][1]}',
+                      'value': 'Z',
+                      'type': ''})
+
+        for i in range(1, nb_dof):
+            # Multiplying by T
+            varss.append({'name': 'T',
+                          'value': f'T@{T_fcts[i][1]}',
+                          'type': ''})
+
+            # Compute L
+            varss.append({'name': 'L',
+                          'value': f'p0-T{language.operators["[]"][0][0]}{language.indexing_0}:' + \
+                                   f'{language.indexing_0 + 2 + language.subscription}' + \
+                                   f',{language.indexing_0 + 3}{language.operators["[]"][0][1]}',
+                          'type': ''})
+            # Compute Z
+            varss.append({'name': 'Z',
+                          'value': f'T{language.operators["[]"][0][0]}{language.indexing_0}:' + \
+                                   f'{language.indexing_0 + 2 + language.subscription}' + \
+                                   f',{language.indexing_0 + 2}{language.operators["[]"][0][1]}',
+                          'type': ''})
+
+            # Compute Jacobian column 1:3
+            varss.append({'name': f'Jac{language.operators["[]"][0][0]}{language.indexing_0}:' + \
+                                  f'{language.indexing_0 + 2 + language.subscription}' + \
+                                  f',{language.indexing_0 + i}{language.operators["[]"][0][1]}',
+                          'value': 'cross(Z,L)',
+                          'type': ''})
+
+            # Compute Jacobian column 4:6
+            varss.append({'name': f'Jac{language.operators["[]"][0][0]}{language.indexing_0 + 3}:' + \
+                                  f'{language.indexing_0 + 5 + language.subscription}' + \
+                                  f',{language.indexing_0 + i}{language.operators["[]"][0][1]}',
+                          'value': 'Z',
+                          'type': ''})
+
+    else:
+        jac, all_sym = robot\
+            .jacobian(origin, destination,
+                      optimization_level=optimization_level)
+
         params_tmp = []
         for symbol in all_sym:
 
@@ -768,92 +916,8 @@ def generate_jacobian(robot, origin, destination,
 
             params_tmp.append(param)
             params.append(param)
-        val = 'MATLAB_PREFIXT_' + joint.name + '('
-
-        params_tmp.sort(key=lambda x: x['name'])
-
-        for i_p, par in enumerate(params_tmp):
-            val += par['name']
-            if i_p < len(params_tmp) - 1:
-                val += ','
-            else:
-                val += ')'
-
-        T_fcts.append(['MATLAB_PREFIXT_' + str(down_joint_nb), val])
-
-    # Jacobian variables .....................................................
-
-    nb_dof = len(params)
-
-    varss.append({'name': 'Jac',
-                  'value': f"_zeros_6_{nb_dof}_",
-                  'type': 'mat'})
-
-    varss.append({'name': 'T',
-                  'value': f'{T_fcts[0][1]}',
-                  'type': 'mat'})
-
-    varss.append({'name': 'L',
-                  'value': f'p0-T{language.operators["[]"][0][0]}{language.indexing_0}:' + \
-                           f'{language.indexing_0 + 2 + language.subscription}' + \
-                           f',{language.indexing_0 + 3}{language.operators["[]"][0][1]}',
-                  'type': 'mat'})
-
-    varss.append({'name': 'Z',
-                  'value': f'T{language.operators["[]"][0][0]}{language.indexing_0}:' + \
-                           f'{language.indexing_0 + 2 + language.subscription},' + \
-                           f'{language.indexing_0 + 2}{language.operators["[]"][0][1]}',
-                  'type': 'mat'})
-
-    # Compute Jacobian column 1:3
-    varss.append({'name': f'Jac{language.operators["[]"][0][0]}{language.indexing_0}:' + \
-                          f'{language.indexing_0 + 2 + language.subscription},' + \
-                          f'{language.indexing_0}{language.operators["[]"][0][1]}',
-                  'value': 'cross(Z,L)',
-                  'type': ''})
-
-    # Compute Jacobian column 4:6
-    varss.append({'name': f'Jac{language.operators["[]"][0][0]}{language.indexing_0 + 3}:' + \
-                          f'{language.indexing_0 + 5 + language.subscription}' + \
-                          f',{language.indexing_0}{language.operators["[]"][0][1]}',
-                  'value': 'Z',
-                  'type': ''})
-
-    for i in range(1, nb_dof):
-        # Multiplying by T
-        varss.append({'name': 'T',
-                      'value': f'T@{T_fcts[i][1]}',
-                      'type': ''})
-
-        # Compute L
-        varss.append({'name': 'L',
-                      'value': f'p0-T{language.operators["[]"][0][0]}{language.indexing_0}:' + \
-                               f'{language.indexing_0 + 2 + language.subscription}' + \
-                               f',{language.indexing_0 + 3}{language.operators["[]"][0][1]}',
-                      'type': ''})
-        # Compute Z
-        varss.append({'name': 'Z',
-                      'value': f'T{language.operators["[]"][0][0]}{language.indexing_0}:' + \
-                               f'{language.indexing_0 + 2 + language.subscription}' + \
-                               f',{language.indexing_0 + 2}{language.operators["[]"][0][1]}',
-                      'type': ''})
-
-        # Compute Jacobian column 1:3
-        varss.append({'name': f'Jac{language.operators["[]"][0][0]}{language.indexing_0}:' + \
-                              f'{language.indexing_0 + 2 + language.subscription}' + \
-                              f',{language.indexing_0 + i}{language.operators["[]"][0][1]}',
-                      'value': 'cross(Z,L)',
-                      'type': ''})
-
-        # Compute Jacobian column 4:6
-        varss.append({'name': f'Jac{language.operators["[]"][0][0]}{language.indexing_0 + 3}:' + \
-                              f'{language.indexing_0 + 5 + language.subscription}' + \
-                              f',{language.indexing_0 + i}{language.operators["[]"][0][1]}',
-                      'value': 'Z',
-                      'type': ''})
 
     expr = 'Jac'
-
     index_origin = int(origin.split('_')[1])
     type_origin = origin.split('_')[0]
     origin_name = robot.joints[index_origin].name if type_origin == 'joint' \
@@ -885,7 +949,7 @@ def generate_jacobian(robot, origin, destination,
 
     docstr = f'Computes the Jacobian Matrix of the {dest_name} coordinates ' + \
              f'in the {origin_name} frame from the point p0. This matrix is ' + \
-             f'returned as a (6 x {nb_dof}) matrix where every column is the' + \
+             f'returned as a (6 x {len(params)}) matrix where every column is the' + \
              ' derivative of the position/orientation with respect to a degree ' + \
              'of freedom. \n' + \
              f'    - The line 1 is the derivative of X position of {dest_name}' + \
@@ -905,15 +969,18 @@ def generate_jacobian(robot, origin, destination,
         docstr += f'\n    - Column {language.indexing_0 + i_p} : ' + \
                   f'{param["name"]}'
 
-    for i_v, var in enumerate(varss):
-        for i_p, param in enumerate(params):
-            varss[i_v]['value'] = replace_var(var['value'], param['name'],
-                                              f'q[{i_p + language.indexing_0}]')
-
     fname = 'jacobian_' + origin_name + '_to_' + dest_name
 
-    code += language.generate_fct(fname, parameters, expr, varss, docstr,
-                                  matrix_dims=(1, 1))
+    if optimization_level == 0:
+        for i_v, var in enumerate(varss):
+            for i_p, param in enumerate(params):
+                varss[i_v]['value'] = replace_var(var['value'], param['name'],
+                                                  f'q[{i_p + language.indexing_0}]')
+        code += language.generate_fct(fname, parameters, expr, varss, docstr,
+                                      matrix_dims=(1, 1))
+    else:
+        code += generate_code_from_sym_mat(jac, fname, language, docstr,
+                                           input_is_vector=True)
 
     return code
 
