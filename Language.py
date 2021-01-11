@@ -268,11 +268,11 @@ class Language:
                          'cross': 'cross(__param1__, __param2__'}
             self.docstr_before = True
             self.extension = 'jl'
-            self.mat_obj_start = '['
-            self.mat_obj_end = ']'
+            self.mat_obj_start = 'vcat('
+            self.mat_obj_end = ')'
             self.mat_col_separator = ' '
-            self.mat_line_separator = ';'
-            self.mat_new_line = ['', '']
+            self.mat_line_separator = ','
+            self.mat_new_line = ['[', ']']
 
             self.header = "using LinearAlgebra\n"
 
