@@ -440,7 +440,7 @@ class LinkDH(Link):
         if is_world:
             self.link_id = 0
             self.name = "world"
-            self.com = np.array([0, 0, 0])
+            self.com = np.zeros((3, 1))
             self.mass = 0
             self.parent_joints = [0]
             self.child_joints = []
@@ -461,7 +461,7 @@ class LinkDH(Link):
 
         self.link_id = link_number + 1
         self.name = "link_" + dhparams_object.rows[link_number].name
-        self.com = np.array(dhparams_object.rows[link_number].com)
+        self.com = np.array([dhparams_object.rows[link_number].com]).T
         self.mass = dhparams_object.rows[link_number].mass
         self.parent_joints = [link_number + 1]
         self.child_joints = [link_number]
