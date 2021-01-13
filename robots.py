@@ -229,7 +229,7 @@ class Robot:
 
     # Get transition matrices between 2 Joints / Links _______________________
 
-    def forward_kinematics(self, origin, destination, optimize=False):
+    def forward_kinematics(self, origin, destination, optimization_level=0):
         """
         Description
         -----------
@@ -260,10 +260,17 @@ class Robot:
                 
                 Example : destination='link_0'
 
-        optimize : bool
-            Set this to True if you want the forward kinematics function to be
-            simplified.  This might  take  a long time to compute (about 1 min
-            for a 6 DoF kinematic chain)
+        optimization_level : int
+            Optimization level of the generated code.
+            - 0 : Numeric  computation  of  FK  using  the transition matrices
+            functions (not applicable here)
+            - 1 : Computes  directly  the  FK  without  using  the  transition
+            matrices functions, but the expression is not simplified
+            - 2 : Computes  directly  the  FK  without  using  the  transition
+            matrices functions, and the expression is factored
+            - 3 : Computes  directly  the  FK  without  using  the  transition
+            matrices  functions,  and the expression is simplified. This might
+            take a long time to compute for only a few gains compared to 2.
         
         Returns
         -------
@@ -301,8 +308,11 @@ class Robot:
         for down_joint_nb in downwards:
             T *= self.joints[down_joint_nb].T
 
+        if optimization_level == 1:
+            return T.evalf().nsimplify(tolerance=1e-10).evalf()
+
         T = T.factor().evalf().nsimplify(tolerance=1e-10).evalf()
-        if optimize:
+        if optimization_level == 3:
             T = T.simplify().nsimplify(tolerance=1e-10).evalf()
 
         # Save the FK
@@ -407,8 +417,9 @@ class Robot:
         for i, j_nb in enumerate(upwards + downwards):
             if self.joints[j_nb].joint_type.lower() in ["continuous",
                                                         "revolute"]:
-                Jo[0:3, i] = self.forward_kinematics(origin, f"joint_{j_nb}",
-                                                     optimize=False)[0:3, 2]
+                Jo[0:3, i] = self\
+                    .forward_kinematics(origin, f"joint_{j_nb}",
+                                        optimization_level=1)[0:3, 2]
 
         JJ = Matrix([[Jx], [Jo]])
 

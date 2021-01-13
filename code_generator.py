@@ -15,6 +15,75 @@ from polynomial_trajectory import get_solution, verify_solution, get_equations
 from anytree import PreOrderIter
 
 
+# Get the parameters from sympy ______________________________________________
+
+def get_parameters(syms):
+    """
+    Get the parameters and their description from a list of symbols
+
+    Parameters
+    ----------
+    syms : list of sympy.core.symbol.Symbol
+        List of all the symbols you want to get the parameters from
+
+    Returns
+    -------
+
+    params : list of dict
+        Parameters created. Every element of the list has these keys :
+            - name : str : Variable Name
+            - type : str : Variable Type, can be 'double', 'vect' or 'mat'
+            - description : str : Parameter description (for doc string).
+            This field depends on the name of the symbol.
+    """
+
+    params = []
+    for symbol in syms:
+        param = {'name': str(symbol), 'type': 'double'}
+        category = param['name'].split('_')[0]
+        descr = ''
+        if category == 'd':
+            descr += 'Translation value (in meters) along the '
+            descr += param['name'][2:] + ' prismatic joint axis.'
+
+        elif category == 'dx':
+            descr += 'Translation value (in meters) along the X axis of the '
+            descr += param['name'][3:] + ' joint.'
+
+        elif category == 'dy':
+            descr += 'Translation value (in meters) along the Y axis of the '
+            descr += param['name'][3:] + ' joint.'
+
+        elif category == 'dz':
+            descr += 'Translation value (in meters) along the Z axis of the '
+            descr += param['name'][3:] + ' joint.'
+
+        elif category == 'dz':
+            descr += 'Translation value (in meters) along the Z axis of the '
+            descr += param['name'][3:] + ' joint.'
+
+        elif category == 'theta':
+            descr += 'Rotation value (in radians) around the '
+            descr += param['name'][6:] + ' joint axis.'
+
+        elif category == 'roll':
+            descr += 'Rotation value (in radians) around the X axis of the '
+            descr += param['name'][5:] + ' joint.'
+
+        elif category == 'pitch':
+            descr += 'Rotation value (in radians) around the Y axis of the '
+            descr += param['name'][6:] + ' joint.'
+
+        elif category == 'yaw':
+            descr += 'Rotation value (in radians) around the Z axis of the '
+            descr += param['name'][4:] + ' joint.'
+
+        param['description'] = descr
+
+        params.append(param)
+    return params
+
+
 # Generate Python code from Sympy Matrix _____________________________________
 
 def generate_code_from_sym_mat(sympy_matrix, fname,
@@ -79,52 +148,9 @@ def generate_code_from_sym_mat(sympy_matrix, fname,
 
     # 2 - Getting function parameters ........................................
 
-    params = []
     syms = list(sympy_matrix.free_symbols)
     syms.sort(key=lambda x: str(x))
-    for symbol in syms:
-        param = {'name': str(symbol), 'type': 'double'}
-        category = param['name'].split('_')[0]
-        descr = ''
-        if category == 'd':
-            descr += 'Translation value (in meters) along the '
-            descr += param['name'][2:] + ' prismatic joint axis.'
-
-        elif category == 'dx':
-            descr += 'Translation value (in meters) along the X axis of the '
-            descr += param['name'][3:] + ' joint.'
-
-        elif category == 'dy':
-            descr += 'Translation value (in meters) along the Y axis of the '
-            descr += param['name'][3:] + ' joint.'
-
-        elif category == 'dz':
-            descr += 'Translation value (in meters) along the Z axis of the '
-            descr += param['name'][3:] + ' joint.'
-
-        elif category == 'dz':
-            descr += 'Translation value (in meters) along the Z axis of the '
-            descr += param['name'][3:] + ' joint.'
-
-        elif category == 'theta':
-            descr += 'Rotation value (in radians) around the '
-            descr += param['name'][6:] + ' joint axis.'
-
-        elif category == 'roll':
-            descr += 'Rotation value (in radians) around the X axis of the '
-            descr += param['name'][5:] + ' joint.'
-
-        elif category == 'pitch':
-            descr += 'Rotation value (in radians) around the Y axis of the '
-            descr += param['name'][6:] + ' joint.'
-
-        elif category == 'yaw':
-            descr += 'Rotation value (in radians) around the Z axis of the '
-            descr += param['name'][4:] + ' joint.'
-
-        param['description'] = descr
-
-        params.append(param)
+    params = get_parameters(syms)
 
     r = language.generate_fct(fname, params, code_mat, varss=varss,
                               docstr=docstr,
@@ -254,7 +280,7 @@ def generate_all_matrices(robot, list_ftm, list_btm,
 
 # Generate Forward Kinematics ________________________________________________
 
-def generate_fk(robot, origin, destination, optimization_level,
+def generate_fk(robot, origin, destination, content, optimization_level,
                 language=Language('python')):
     """
     Description
@@ -290,6 +316,9 @@ def generate_fk(robot, origin, destination, optimization_level,
             
             Example : destination='link_0'
 
+    content : str
+        Content of the FK ('xyz', "xyzo", "o", ...)
+
     optimization_level : int
         Optimization level of the generated code.
             - 0 : Numeric  computation  of  FK  using  the transition matrices
@@ -297,12 +326,14 @@ def generate_fk(robot, origin, destination, optimization_level,
             - 1 : Computes  directly  the  FK  without  using  the  transition
             matrices functions, but the expression is not simplified
             - 2 : Computes  directly  the  FK  without  using  the  transition
+            matrices functions, and the expression is factored
+            - 3 : Computes  directly  the  FK  without  using  the  transition
             matrices  functions,  and the expression is simplified. This might
-            take a long time to compute for only a few gains compared to 1.
+            take a long time to compute for only a few gains compared to 2.
     
     language : Language.Language, optional
         Language you want the code to be generated to
-        Defalut is Language('python')
+        Default is Language('python')
         
     Returns
     -------
@@ -340,7 +371,7 @@ def generate_fk(robot, origin, destination, optimization_level,
 
     if optimization_level > 0:
         fk = robot.forward_kinematics(origin, destination,
-                                      optimize=optimization_level > 1)
+                                      optimization_level=optimization_level)
         return generate_code_from_sym_mat(fk, fname, language, docstr,
                                           input_is_vector=True)
 
@@ -359,61 +390,19 @@ def generate_fk(robot, origin, destination, optimization_level,
     params = []
 
     # First upwards joints
+    if upwards:
+        pass  # TODO
+
     for up_joint_nb in upwards:
         joint = robot.joints[up_joint_nb]
 
         # Parameters
         all_sym = joint.T.free_symbols
-        params_tmp = []
-        for symbol in all_sym:
-
-            param = {'name': str(symbol), 'type': 'double'}
-            category = param['name'].split('_')[0]
-            descr = ''
-            if category == 'd':
-                descr += 'Translation value (in meters) along the '
-                descr += param['name'][2:] + ' prismatic joint axis.'
-
-            elif category == 'dx':
-                descr += 'Translation value (in meters) along the X axis of '
-                descr += 'the ' + param['name'][3:] + ' joint.'
-
-            elif category == 'dy':
-                descr += 'Translation value (in meters) along the Y axis of '
-                descr += 'the ' + param['name'][3:] + ' joint.'
-
-            elif category == 'dz':
-                descr += 'Translation value (in meters) along the Z axis of '
-                descr += 'the ' + param['name'][3:] + ' joint.'
-
-            elif category == 'dz':
-                descr += 'Translation value (in meters) along the Z axis of '
-                descr += 'the ' + param['name'][3:] + ' joint.'
-
-            elif category == 'theta':
-                descr += 'Rotation value (in radians) around the '
-                descr += param['name'][6:] + ' joint axis.'
-
-            elif category == 'roll':
-                descr += 'Rotation value (in radians) around the X axis of '
-                descr += 'the ' + param['name'][5:] + ' joint.'
-
-            elif category == 'pitch':
-                descr += 'Rotation value (in radians) around the Y axis of '
-                descr += 'the ' + param['name'][6:] + ' joint.'
-
-            elif category == 'yaw':
-                descr += 'Rotation value (in radians) around the Z axis of '
-                descr += 'the ' + param['name'][4:] + ' joint.'
-
-            param['description'] = descr
-
-            params_tmp.append(param)
-            params.append(param)
+        all_sym.sort(key=lambda x: str(x))
+        params_tmp = get_parameters(all_sym)
+        params += get_parameters(all_sym)
 
         val = 'MATLAB_PREFIXT_' + joint.name + '_inv('
-
-        params_tmp.sort(key=lambda x: x['name'])
 
         for i_p, par in enumerate(params_tmp):
             val += par['name']
@@ -432,54 +421,8 @@ def generate_fk(robot, origin, destination, optimization_level,
         joint = robot.joints[down_joint_nb]
         # Parameters
         all_sym = joint.T.free_symbols
-        params_tmp = []
-        for symbol in all_sym:
-
-            param = {}
-            param['name'] = str(symbol)
-            param['type'] = 'double'
-            category = param['name'].split('_')[0]
-            descr = ''
-            if category == 'd':
-                descr += 'Translation value (in meters) along the '
-                descr += param['name'][2:] + ' prismatic joint axis.'
-
-            elif category == 'dx':
-                descr += 'Translation value (in meters) along the X axis of '
-                descr += 'the ' + param['name'][3:] + ' joint.'
-
-            elif category == 'dy':
-                descr += 'Translation value (in meters) along the Y axis of '
-                descr += 'the ' + param['name'][3:] + ' joint.'
-
-            elif category == 'dz':
-                descr += 'Translation value (in meters) along the Z axis of '
-                descr += 'the ' + param['name'][3:] + ' joint.'
-
-            elif category == 'dz':
-                descr += 'Translation value (in meters) along the Z axis of '
-                descr += 'the ' + param['name'][3:] + ' joint.'
-
-            elif category == 'theta':
-                descr += 'Rotation value (in radians) around the '
-                descr += param['name'][6:] + ' joint axis.'
-
-            elif category == 'roll':
-                descr += 'Rotation value (in radians) around the X axis of '
-                descr += 'the ' + param['name'][5:] + ' joint.'
-
-            elif category == 'pitch':
-                descr += 'Rotation value (in radians) around the Y axis of '
-                descr += 'the ' + param['name'][6:] + ' joint.'
-
-            elif category == 'yaw':
-                descr += 'Rotation value (in radians) around the Z axis of '
-                descr += 'the ' + param['name'][4:] + ' joint.'
-
-            param['description'] = descr
-
-            params_tmp.append(param)
-            params.append(param)
+        params_tmp = get_parameters(all_sym)
+        params += get_parameters(all_sym)
         val = 'MATLAB_PREFIXT_' + joint.name + '('
 
         params_tmp.sort(key=lambda x: x['name'])
@@ -508,6 +451,8 @@ def generate_fk(robot, origin, destination, optimization_level,
         if i_v < len(varss) - 1:
             expr += '@'
 
+    params.sort(key=lambda x: x['name'])
+
     code += language.generate_fct(fname, params, expr, varss, docstr,
                                   matrix_dims=(1, 1), input_is_vector=True)
 
@@ -516,7 +461,8 @@ def generate_fk(robot, origin, destination, optimization_level,
 
 # Generate all FK functions __________________________________________________
 
-def generate_all_fk(robot, list_origin, list_dest,
+def generate_all_fk(robot, list_origin, list_dest, list_content,
+                    optimization_level,
                     language=Language('python')):
     """
     Description
@@ -549,6 +495,21 @@ def generate_all_fk(robot, list_origin, list_dest,
             considered Joint / Link in self.joints / self.links.
             
             Example : destination='link_0'
+    list_content : list of str
+        Every element is a string containing the content of the FK
+        ("xyz", "xyzo", "o", ...)
+
+    optimization_level : int
+        Optimization level of the generated code.
+            - 0 : Numeric  computation  of  FK  using  the transition matrices
+            functions
+            - 1 : Computes  directly  the  FK  without  using  the  transition
+            matrices functions, but the expression is not simplified
+            - 2 : Computes  directly  the  FK  without  using  the  transition
+            matrices functions, and the expression is factored
+            - 3 : Computes  directly  the  FK  without  using  the  transition
+            matrices  functions,  and the expression is simplified. This might
+            take a long time to compute for only a few gains compared to 2.
     
     language : Language.Language, optional
         Language you want the code to be generated to
@@ -571,7 +532,9 @@ def generate_all_fk(robot, list_origin, list_dest,
     code += '\n\n'
 
     for i, origin, in enumerate(list_origin):
-        code += generate_fk(robot, origin, list_dest[i], 1, language=language)
+        code += generate_fk(robot, origin, list_dest[i],
+                            list_content[i], optimization_level,
+                            language=language)
         if i < len(list_origin) - 1:
             code += '\n\n'
 
@@ -580,8 +543,8 @@ def generate_all_fk(robot, list_origin, list_dest,
 
 # Generate Jacobian Function _________________________________________________
 
-def generate_jacobian(robot, origin, destination,
-                      language=Language('python'), optimization_level=2):
+def generate_jacobian(robot, origin, destination, content,
+                      language=Language('python'), optimization_level=0):
     """
     Description
     -----------
@@ -617,6 +580,9 @@ def generate_jacobian(robot, origin, destination,
             considered Joint / Link in self.joints / self.links.
             
             Example : destination='link_0'
+
+    content : str
+        Content of the jacobian ("xyzrpY", ...)
     
     language : Language.Language, optional
         Language you want the code to be generated to
@@ -658,8 +624,6 @@ def generate_jacobian(robot, origin, destination,
         # Intermediate variables
         varss = []
 
-
-
         T_fcts = []
 
         # First upwards joints
@@ -668,54 +632,8 @@ def generate_jacobian(robot, origin, destination,
 
             # Paramters
             all_sym = joint.T.free_symbols
-            params_tmp = []
-            for symbol in all_sym:
-
-                param = {}
-                param['name'] = str(symbol)
-                param['type'] = 'double'
-                category = param['name'].split('_')[0]
-                descr = ''
-                if category == 'd':
-                    descr += 'Translation value (in meters) along the '
-                    descr += param['name'][2:] + ' prismatic joint axis.'
-
-                elif category == 'dx':
-                    descr += 'Translation value (in meters) along the X axis of '
-                    descr += 'the ' + param['name'][3:] + ' joint.'
-
-                elif category == 'dy':
-                    descr += 'Translation value (in meters) along the Y axis of '
-                    descr += 'the ' + param['name'][3:] + ' joint.'
-
-                elif category == 'dz':
-                    descr += 'Translation value (in meters) along the Z axis of '
-                    descr += 'the ' + param['name'][3:] + ' joint.'
-
-                elif category == 'dz':
-                    descr += 'Translation value (in meters) along the Z axis of '
-                    descr += 'the ' + param['name'][3:] + ' joint.'
-
-                elif category == 'theta':
-                    descr += 'Rotation value (in radians) around the '
-                    descr += param['name'][6:] + ' joint axis.'
-
-                elif category == 'roll':
-                    descr += 'Rotation value (in radians) around the X axis of '
-                    descr += 'the ' + param['name'][5:] + ' joint.'
-
-                elif category == 'pitch':
-                    descr += 'Rotation value (in radians) around the Y axis of '
-                    descr += 'the ' + param['name'][6:] + ' joint.'
-
-                elif category == 'yaw':
-                    descr += 'Rotation value (in radians) around the Z axis of '
-                    descr += 'the ' + param['name'][4:] + ' joint.'
-
-                param['description'] = descr
-
-                params_tmp.append(param)
-                params.append(param)
+            params_tmp = get_parameters(all_sym)
+            params += get_parameters(all_sym)
 
             val = 'MATLAB_PREFIXT_' + joint.name + '_inv('
 
@@ -728,59 +646,15 @@ def generate_jacobian(robot, origin, destination,
                 else:
                     val += ')'
 
-            T_fcts.append(['MATLAB_PREFIXT_' + str(up_joint_nb) + '_inv', val])
+            T_fcts.append([f'MATLAB_PREFIXT_{up_joint_nb}_inv', val])
 
         # Then downwards joints
         for down_joint_nb in downwards:
             joint = robot.joints[down_joint_nb]
             # Parameters
             all_sym = joint.T.free_symbols
-            params_tmp = []
-            for symbol in all_sym:
-
-                param = {'name': str(symbol), 'type': 'double'}
-                category = param['name'].split('_')[0]
-                descr = ''
-                if category == 'd':
-                    descr += 'Translation value (in meters) along the '
-                    descr += param['name'][2:] + ' prismatic joint axis.'
-
-                elif category == 'dx':
-                    descr += 'Translation value (in meters) along the X axis of '
-                    descr += 'the ' + param['name'][3:] + ' joint.'
-
-                elif category == 'dy':
-                    descr += 'Translation value (in meters) along the Y axis of '
-                    descr += 'the ' + param['name'][3:] + ' joint.'
-
-                elif category == 'dz':
-                    descr += 'Translation value (in meters) along the Z axis of '
-                    descr += 'the ' + param['name'][3:] + ' joint.'
-
-                elif category == 'dz':
-                    descr += 'Translation value (in meters) along the Z axis of '
-                    descr += 'the ' + param['name'][3:] + ' joint.'
-
-                elif category == 'theta':
-                    descr += 'Rotation value (in radians) around the '
-                    descr += param['name'][6:] + ' joint axis.'
-
-                elif category == 'roll':
-                    descr += 'Rotation value (in radians) around the X axis of '
-                    descr += 'the ' + param['name'][5:] + ' joint.'
-
-                elif category == 'pitch':
-                    descr += 'Rotation value (in radians) around the Y axis of '
-                    descr += 'the ' + param['name'][6:] + ' joint.'
-
-                elif category == 'yaw':
-                    descr += 'Rotation value (in radians) around the Z axis of '
-                    descr += 'the ' + param['name'][4:] + ' joint.'
-
-                param['description'] = descr
-
-                params_tmp.append(param)
-                params.append(param)
+            params_tmp = get_parameters(all_sym)
+            params += get_parameters(all_sym)
             val = 'MATLAB_PREFIXT_' + joint.name + '('
 
             params_tmp.sort(key=lambda x: x['name'])
@@ -794,7 +668,7 @@ def generate_jacobian(robot, origin, destination,
 
             T_fcts.append(['MATLAB_PREFIXT_' + str(down_joint_nb), val])
 
-        # Jacobian variables .....................................................
+        # Jacobian variables .................................................
 
         nb_dof = len(params)
 
@@ -870,53 +744,7 @@ def generate_jacobian(robot, origin, destination,
             .jacobian(origin, destination,
                       optimization_level=optimization_level)
 
-        params_tmp = []
-        for symbol in all_sym:
-
-            param = {'name': str(symbol), 'type': 'double'}
-            category = param['name'].split('_')[0]
-            descr = ''
-            if category == 'd':
-                descr += 'Translation value (in meters) along the '
-                descr += param['name'][2:] + ' prismatic joint axis.'
-
-            elif category == 'dx':
-                descr += 'Translation value (in meters) along the X axis of '
-                descr += 'the ' + param['name'][3:] + ' joint.'
-
-            elif category == 'dy':
-                descr += 'Translation value (in meters) along the Y axis of '
-                descr += 'the ' + param['name'][3:] + ' joint.'
-
-            elif category == 'dz':
-                descr += 'Translation value (in meters) along the Z axis of '
-                descr += 'the ' + param['name'][3:] + ' joint.'
-
-            elif category == 'dz':
-                descr += 'Translation value (in meters) along the Z axis of '
-                descr += 'the ' + param['name'][3:] + ' joint.'
-
-            elif category == 'theta':
-                descr += 'Rotation value (in radians) around the '
-                descr += param['name'][6:] + ' joint axis.'
-
-            elif category == 'roll':
-                descr += 'Rotation value (in radians) around the X axis of '
-                descr += 'the ' + param['name'][5:] + ' joint.'
-
-            elif category == 'pitch':
-                descr += 'Rotation value (in radians) around the Y axis of '
-                descr += 'the ' + param['name'][6:] + ' joint.'
-
-            elif category == 'yaw':
-                descr += 'Rotation value (in radians) around the Z axis of '
-                descr += 'the ' + param['name'][4:] + ' joint.'
-
-            param['description'] = descr
-
-            params_tmp.append(param)
-            params.append(param)
-
+        params += get_parameters(all_sym)
     expr = 'Jac'
     index_origin = int(origin.split('_')[1])
     type_origin = origin.split('_')[0]
@@ -926,11 +754,6 @@ def generate_jacobian(robot, origin, destination,
     type_dest = destination.split('_')[0]
     dest_name = robot.joints[index_dest].name if type_dest == 'joint' \
         else robot.links[index_dest].name
-    docstr = 'Comuputes the forward kinematics from the ' + type_origin + ' ' \
-             + origin_name + ' to the ' + type_dest + ' ' + dest_name + \
-             '. The result '
-    docstr += 'is returned as a 4x4 ' + language.matrix_type + ' in ' + \
-              'homogeneous coordinates.'
 
     descrq = f'Vector of length {len(params)} containing all the degrees of ' + \
              'freedom of the robot between ' + \
@@ -938,7 +761,8 @@ def generate_jacobian(robot, origin, destination,
     for i_p, param in enumerate(params):
         descrq += f'\n        - q[{i_p + language.indexing_0}] = ' + \
                   param['name']
-        descrq += ' :\n              ' + param['description']
+        if param['description'] != '':
+            descrq += ' :\n              ' + param['description']
 
     paramq = {'name': 'q', 'type': 'vect', 'description': descrq}
 
@@ -947,24 +771,26 @@ def generate_jacobian(robot, origin, destination,
         " Jacobian Matrix. p0 is a (3 x 1) vector."}
     parameters = [paramq, p0]
 
-    docstr = f'Computes the Jacobian Matrix of the {dest_name} coordinates ' + \
-             f'in the {origin_name} frame from the point p0. This matrix is ' + \
-             f'returned as a (6 x {len(params)}) matrix where every column is the' + \
-             ' derivative of the position/orientation with respect to a degree ' + \
-             'of freedom. \n' + \
-             f'    - The line 1 is the derivative of X position of {dest_name}' + \
-             f' in the {origin_name} frame,\n' + \
-             f'    - The line 2 is the derivative of Y position of {dest_name}' + \
-             f' in the {origin_name} frame,\n' + \
-             f'    - The line 3 is the derivative of Z position of {dest_name}' + \
-             f' in the {origin_name} frame,\n' + \
-             '    - The line 4 is the derivative of the roll orientation of' + \
-             f' {dest_name} in the {origin_name} frame,\n' + \
-             '    - The line 5 is the derivative of the pitch orientation of' + \
-             f' {dest_name} in the {origin_name} frame,\n' + \
-             '    - The line 6 is the derivative of the yaw orientation of' + \
-             f' {dest_name} in the {origin_name} frame,\n' + \
-             'Here is the list of all the derivative variables :'
+    docstr = (f'Computes the Jacobian Matrix of the {dest_name} coordinates '
+              f'in the {origin_name} frame from the point p0. This matrix is '
+              f'returned as a (6 x {len(params)}) matrix where every column '
+              f'is the derivative of the position/orientation with respect to'
+              f' a degree of freedom. \n'
+              f'    - The line 1 is the derivative of X position of '
+              f'{dest_name} in the {origin_name} frame,\n'
+              f'    - The line 2 is the derivative of Y position of '
+              f'{dest_name}'
+              f' in the {origin_name} frame,\n'
+              f'    - The line 3 is the derivative of Z position of '
+              f'{dest_name}'
+              f' in the {origin_name} frame,\n'
+              '    - The line 4 is the derivative of the roll orientation of'
+              f' {dest_name} in the {origin_name} frame,\n'
+              '    - The line 5 is the derivative of the pitch orientation of'
+              f' {dest_name} in the {origin_name} frame,\n'
+              '    - The line 6 is the derivative of the yaw orientation of'
+              f' {dest_name} in the {origin_name} frame,\n'
+              'Here is the list of all the derivative variables :')
     for i_p, param in enumerate(params):
         docstr += f'\n    - Column {language.indexing_0 + i_p} : ' + \
                   f'{param["name"]}'
@@ -987,7 +813,8 @@ def generate_jacobian(robot, origin, destination,
 
 # Generate all Jacobian Matrices _____________________________________________
 
-def generate_all_jac(robot, list_origin, list_dest,
+def generate_all_jac(robot, list_origin, list_dest, list_content,
+                     optimization_level,
                      language=Language('python')):
     """
     Description
@@ -1020,6 +847,16 @@ def generate_all_jac(robot, list_origin, list_dest,
             considered Joint / Link in self.joints / self.links.
             
             Example : destination='link_0'
+
+    list_content : list of str
+        Every element is the content of the jacobian ("xyzrpY", ...)
+
+    optimization_level : int
+        - 0 => Jacobian is computed numerically (fastest to generate, slowest
+        code
+        - 1 => Jacobian is computed analytically but is not simplified
+        - 2 => Jacobian is computed analytically and is factored
+        - 3 => Jacobian is computed analytically and is simplified
     
     language : Language.Language, optional
         Language you want the code to be generated to
@@ -1042,6 +879,8 @@ def generate_all_jac(robot, list_origin, list_dest,
 
     for i, origin, in enumerate(list_origin):
         code += generate_jacobian(robot, origin, list_dest[i],
+                                  list_content[i],
+                                  optimization_level=optimization_level,
                                   language=language)
         if i < len(list_origin) - 1:
             code += '\n\n'
@@ -1131,54 +970,8 @@ def generate_com(robot, language=Language('python')):
 
             # Parameters
             all_sym = joint.T.free_symbols
-            params_tmp = []
-            for symbol in all_sym:
-
-                param = {}
-                param['name'] = str(symbol)
-                param['type'] = 'double'
-                category = param['name'].split('_')[0]
-                descr = ''
-                if category == 'd':
-                    descr += 'Translation value (in meters) along the '
-                    descr += param['name'][2:] + ' prismatic joint axis.'
-
-                elif category == 'dx':
-                    descr += 'Translation value (in meters) along the X axis'
-                    descr += ' of the ' + param['name'][3:] + ' joint.'
-
-                elif category == 'dy':
-                    descr += 'Translation value (in meters) along the Y axis'
-                    descr += ' of the ' + param['name'][3:] + ' joint.'
-
-                elif category == 'dz':
-                    descr += 'Translation value (in meters) along the Z axis'
-                    descr += ' of the ' + param['name'][3:] + ' joint.'
-
-                elif category == 'dz':
-                    descr += 'Translation value (in meters) along the Z axis'
-                    descr += ' of the ' + param['name'][3:] + ' joint.'
-
-                elif category == 'theta':
-                    descr += 'Rotation value (in radians) around the '
-                    descr += param['name'][6:] + ' joint axis.'
-
-                elif category == 'roll':
-                    descr += 'Rotation value (in radians) around the X axis'
-                    descr += ' of the ' + param['name'][5:] + ' joint.'
-
-                elif category == 'pitch':
-                    descr += 'Rotation value (in radians) around the Y axis'
-                    descr += ' of the ' + param['name'][6:] + ' joint.'
-
-                elif category == 'yaw':
-                    descr += 'Rotation value (in radians) around the Z axis'
-                    descr += ' of the ' + param['name'][4:] + ' joint.'
-
-                param['description'] = descr
-
-                params_tmp.append(param)
-                params.append(param)
+            params_tmp = get_parameters(all_sym)
+            params += get_parameters(all_sym)
             T_fct = 'MATLAB_PREFIXT_' + joint.name + '('
 
             params_tmp.sort(key=lambda x: x['name'])
@@ -1374,56 +1167,10 @@ def generate_com_jacobian(robot, language=Language('python')):
         elif obj_type == 'joint':
             joint = robot.joints[obj_nb]
 
-            # Paramters
+            # Parameters
             all_sym = joint.T.free_symbols
-            params_tmp = []
-            for symbol in all_sym:
-
-                param = {}
-                param['name'] = str(symbol)
-                param['type'] = 'double'
-                category = param['name'].split('_')[0]
-                descr = ''
-                if category == 'd':
-                    descr += 'Translation value (in meters) along the '
-                    descr += param['name'][2:] + ' prismatic joint axis.'
-
-                elif category == 'dx':
-                    descr += 'Translation value (in meters) along the X axis'
-                    descr += ' of the ' + param['name'][3:] + ' joint.'
-
-                elif category == 'dy':
-                    descr += 'Translation value (in meters) along the Y axis'
-                    descr += ' of the ' + param['name'][3:] + ' joint.'
-
-                elif category == 'dz':
-                    descr += 'Translation value (in meters) along the Z axis'
-                    descr += ' of the ' + param['name'][3:] + ' joint.'
-
-                elif category == 'dz':
-                    descr += 'Translation value (in meters) along the Z axis'
-                    descr += ' of the ' + param['name'][3:] + ' joint.'
-
-                elif category == 'theta':
-                    descr += 'Rotation value (in radians) around the '
-                    descr += param['name'][6:] + ' joint axis.'
-
-                elif category == 'roll':
-                    descr += 'Rotation value (in radians) around the X axis'
-                    descr += ' of the ' + param['name'][5:] + ' joint.'
-
-                elif category == 'pitch':
-                    descr += 'Rotation value (in radians) around the Y axis'
-                    descr += ' of the ' + param['name'][6:] + ' joint.'
-
-                elif category == 'yaw':
-                    descr += 'Rotation value (in radians) around the Z axis'
-                    descr += ' of the ' + param['name'][4:] + ' joint.'
-
-                param['description'] = descr
-
-                params_tmp.append(param)
-                params.append(param)
+            params_tmp = get_parameters(all_sym)
+            params += get_parameters(all_sym)
             T_fct = 'MATLAB_PREFIXT_' + joint.name + '('
 
             params_tmp.sort(key=lambda x: x['name'])
@@ -1771,7 +1518,8 @@ def generate_all_polynomial_trajectories(trajectories, language):
 # Generate Everything ________________________________________________________
 
 def generate_everything(robot, list_ftm, list_btm, list_fk, list_jac, com,
-                        com_jac, polynomial_trajectories, language, filename):
+                        com_jac, polynomial_trajectories, optimization_level,
+                        language, filename):
     """
     Description
     -----------
@@ -1870,6 +1618,13 @@ def generate_everything(robot, list_ftm, list_btm, list_fk, list_jac, com,
     
     language : Language.Language
         Language of the generated code
+
+    optimization_level : int
+        Optimization level of the generated code :
+        - 0 : Numerical functions
+        - 1 : Analytical functions
+        - 2 : Analytical factored functions
+        - 3 : Analytical simplified functions
     
     filename : str
         Name  of  the  output  file  containing  the  generated  code (without
@@ -1908,23 +1663,32 @@ def generate_everything(robot, list_ftm, list_btm, list_fk, list_jac, com,
             code += '\n\n'
             list_origin = []
             list_dest = []
+            list_content = []
 
             for fk in list_fk:
                 list_origin.append(fk[0])
                 list_dest.append(fk[1])
+                list_content.append(fk[2])
 
-            code += generate_all_fk(robot, list_origin, list_dest, language)
+            code += generate_all_fk(robot, list_origin, list_dest,
+                                    list_content,
+                                    optimization_level,
+                                    language)
 
         if list_jac:
             code += '\n\n'
             list_origin = []
             list_dest = []
+            list_content = []
 
             for fk in list_jac:
                 list_origin.append(fk[0])
                 list_dest.append(fk[1])
+                list_content = (fk[2])
 
-            code += generate_all_jac(robot, list_origin, list_dest, language)
+            code += generate_all_jac(robot, list_origin, list_dest,
+                                     list_content, optimization_level,
+                                     language)
 
         if com:
             code += '\n\n'

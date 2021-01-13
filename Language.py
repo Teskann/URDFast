@@ -172,6 +172,9 @@ class Language:
     return_ : str
         Return statement of the language. For example, in Python "return"
 
+    end_loop : str
+        End of a loop. For example, in C++: "}", in Python: ""
+
     """
 
     # Constructor ============================================================
@@ -236,6 +239,7 @@ class Language:
 
             self.subscription = 1
             self.return_ = "return"
+            self.end_loop = ""
 
         # Julia ..............................................................
 
@@ -278,6 +282,7 @@ class Language:
 
             self.subscription = 0
             self.return_ = "return"
+            self.end_loop = "end"
 
         # MATLAB .............................................................
 
@@ -320,6 +325,7 @@ class Language:
 
             self.subscription = 0
             self.return_ = "return_value ="
+            self.end_loop = "end"
 
     def matrix(self, mat_list):
         """
@@ -738,11 +744,21 @@ class Language:
 
         # Variables ..........................................................
 
+        loops = 0  # Indent level
         for i_var, var in enumerate(varss):
+            if var["name"] == "__FOR__":
+                loops += 1
+                code += (self.for_loop(var['value'][0], var['value'][1]) +
+                         f"\n{indent(loops + 1)}")
+                continue
+            elif var['name'] == "__ENDLOOP__":
+                loops -= 1
+                code += f"\n{indent(1 + loops)}{self.end_loop}"
+                continue
             if self.is_typed:
                 typ = self.double_type if var['type'] == 'double' else \
-                    (self.vector_type if var['type'] == 'vect' else \
-                         self.matrix_type if var['type'] == 'mat' else '')
+                      (self.vector_type if var['type'] == 'vect' else
+                       self.matrix_type if var['type'] == 'mat' else '')
                 if typ != '':
                     code += typ + ' '
 
@@ -752,7 +768,7 @@ class Language:
                                                         param['name'],
                                                         f'q[{i_p + self.indexing_0}]')
             code += var['name'] + ' = ' + self.convert(varss[i_var]['value'])
-            code += self.end_of_line + '\n' + indent(1)
+            code += self.end_of_line + '\n' + indent(1 + loops)
 
         if len(varss) > 0:
             code += '\n' + indent(1)
@@ -871,6 +887,34 @@ class Language:
                 code += '_'
 
         return code
+
+    # For loop _______________________________________________________________
+
+    def for_loop(self, i0, ilt):
+        """
+        Creates the for loop like : for i in range(i0, ilt):
+
+        The iteration variable is i
+
+        Parameters
+        ----------
+        i0 : int
+            Beginning of the iteration
+        ilt : int
+            End of the iteration
+
+        Returns
+        -------
+        for_ : str
+            For loop statement
+        """
+
+        if self.name == "python":
+            return f"for i in range({i0}, {ilt}):"
+        elif self.name == "julia":
+            return f"for i={i0+1}:{ilt}"
+        elif self.name == "matlab":
+            return f"for i={i0+1}:{ilt}"
 
 
 if __name__ == '__main__':

@@ -39,7 +39,8 @@ polynomial_trajectories = []  # Polynomial trajectories list
 robot_obj = 0  # Robot Object
 
 settings = {"language": "Julia",
-            "filename": "out"}
+            "filename": "out",
+            "optimization_level": 0}
 
 path = './GUI/'
 
@@ -215,9 +216,98 @@ def del_joint_from_list(list_widget, combo_box, add_btn, del_btn, forward):
                 i_joint += 1
 
 
+# Get the content (xyzrpy of the FK / jac) ___________________________________
+
+def content_fk_jac(ui, fk):
+    """
+    Find the content of the FK or of the jacobian (X, Y, Z, R, P, Y) using the
+    check box.  This returns a string that needs to be added to the fk_list or
+    jac_list element.
+
+    Parameters
+    ----------
+    ui : main_window.Ui_MainWindow
+        GUI to update
+    fk : bool
+        True if the list to update is the Forward Kinematics list
+        False if the list to update is the Jacobian matrices list
+
+    Returns
+    -------
+
+    """
+
+    content = ""
+
+    # FK
+    if fk:
+        if ui.checkBox_fk_x.isChecked():
+            content += "x"
+        if ui.checkBox_fk_y.isChecked():
+            content += "y"
+        if ui.checkBox_fk_z.isChecked():
+            content += "z"
+        if ui.checkBox_fk_orientation.isChecked():
+            content += "o"
+
+        # Not possible to have orientation + only x y or z
+        if 'o' in content and 1 < len(content) < 4:
+            content = 'INVALID'
+    # Jac
+    else:
+        if ui.checkBox_jac_x.isChecked():
+            content += "x"
+        if ui.checkBox_jac_y.isChecked():
+            content += "y"
+        if ui.checkBox_jac_z.isChecked():
+            content += "z"
+        if ui.checkBox_jac_wx.isChecked():
+            content += "r"
+        if ui.checkBox_jac_wy.isChecked():
+            content += "p"
+        if ui.checkBox_jac_wz.isChecked():
+            content += "Y"
+
+    if content == "":
+        content = "INVALID"
+
+    return content
+
+
+# Parse content for display purposes _________________________________________
+
+def parse_content(content):
+    """
+    Parses the content ("xyzrpyo") for display purposes.
+
+    Parameters
+    ----------
+    content : str
+        String describing the content of a FK, jac, ... ("xyzrpyo")
+
+    Returns
+    -------
+
+    str:
+        String formatted with a better readability
+
+    """
+
+    chars = ['x', 'y', 'z']
+
+    parsed = content
+    for char in chars:
+        parsed = parsed.replace(char, char + ', ')
+    parsed = parsed.replace('o', 'oDientation, ')
+    parsed = parsed.replace('r', 'roll, ').replace('p', 'pitch, ')\
+        .replace('Y', 'yaw, ').replace('D', 'r')
+
+    return '(' + parsed[:-2] + ')'
+
+
 # Add FK or Jacobian _________________________________________________________
 
-def add_fk_jac(list_widget, combo_box_o, combo_box_d, fk):
+def add_fk_jac(ui, fk):
     """
     Description
     -----------
@@ -227,14 +317,8 @@ def add_fk_jac(list_widget, combo_box_o, combo_box_d, fk):
     Parameters
     ----------
     
-    list_widget : PyQt5.QtWidgets.QListWidget
-        List in which you want to add the item
-        
-    combo_box_o : PyQt5.QtWidgets.QComboBox
-        Combo box linked to this list containing origins
-    
-    combo_box_d : PyQt5.QtWidgets.QComboBox
-        Combo box linked to this list containing origins
+    ui : main_window.Ui_MainWindow
+        Current GUI
         
     fk : bool
         True if the list to update is the Forward Kinematics list
@@ -262,9 +346,21 @@ def add_fk_jac(list_widget, combo_box_o, combo_box_d, fk):
     global fk_list
     global jac_list
 
+    if fk:
+        combo_box_o = ui.comboBox_fk_origin
+        combo_box_d = ui.comboBox_fk_destination
+        list_widget = ui.listWidget_fk
+    else:
+        combo_box_o = ui.comboBox_jac_origin
+        combo_box_d = ui.comboBox_jac_destination
+        list_widget = ui.listWidget_jac
+
     # Getting the current item
     ind_o = combo_box_o.currentIndex()
     ind_d = combo_box_d.currentIndex()
+
+    if ind_o == ind_d:
+        return
 
     names = [0, 0]
 
@@ -288,6 +384,11 @@ def add_fk_jac(list_widget, combo_box_o, combo_box_d, fk):
 
         i += 1
 
+    content = content_fk_jac(ui, fk)
+    if content == "INVALID":
+        return
+    ids.append(content)
+
     if fk:
         if ids in fk_list:
             return
@@ -297,7 +398,8 @@ def add_fk_jac(list_widget, combo_box_o, combo_box_d, fk):
             return
         jac_list.append(ids)
 
-    list_widget.addItem(names[0] + '  ==>  ' + names[1])
+    list_widget.addItem(names[0] + '  ==>  ' + names[1] + ' ' +
+                        parse_content(content))
 
 
 # Remove FK or Jacobian ______________________________________________________
@@ -353,8 +455,10 @@ def del_fk_jac(list_widget, fk):
 
         if fk:
             del fk_list[index]
+            print(fk_list)
         else:
             del jac_list[index]
+            print(jac_list)
 
 
 # Add a polynomial trajectory ________________________________________________
@@ -1085,6 +1189,23 @@ def init_gui_from_robot(gui, robot):
         # Expand the whole tree
         gui.treeWidget_info.expandItem(item)
 
+    gui.checkBox_fk_x.setChecked(True)
+    gui.checkBox_fk_y.setChecked(True)
+    gui.checkBox_fk_z.setChecked(True)
+    gui.checkBox_fk_orientation.setChecked(True)
+    gui.checkBox_jac_x.setChecked(True)
+    gui.checkBox_jac_y.setChecked(True)
+    gui.checkBox_jac_z.setChecked(True)
+    gui.checkBox_jac_wx.setChecked(True)
+    gui.checkBox_jac_wy.setChecked(True)
+    gui.checkBox_jac_wz.setChecked(True)
+    gui.checkBox_com_x.setChecked(True)
+    gui.checkBox_com_y.setChecked(True)
+    gui.checkBox_com_z.setChecked(True)
+    gui.checkBox_com_jac_x.setChecked(True)
+    gui.checkBox_com_jac_y.setChecked(True)
+    gui.checkBox_com_jac_z.setChecked(True)
+
     # Transition Matrices ....................................................
 
     ftm_list = []  # Forward transition matrices list
@@ -1168,8 +1289,8 @@ def init_gui_from_robot(gui, robot):
             root_name = robot.links[rnb].name
 
         for leaf in all_leaves:
-            fk_list.append([root, leaf])
-            jac_list.append([root, leaf])
+            fk_list.append([root, leaf, 'xyzo'])
+            jac_list.append([root, leaf, 'xyzrpY'])
             leaf_type, lnb = leaf.split('_')
             lnb = int(lnb)
             if leaf_type == 'joint':
@@ -1177,8 +1298,10 @@ def init_gui_from_robot(gui, robot):
             else:
                 leaf_name = robot.links[lnb].name
 
-            gui.listWidget_fk.addItem(root_name + '  ==>  ' + leaf_name)
-            gui.listWidget_jac.addItem(root_name + '  ==>  ' + leaf_name)
+            gui.listWidget_fk.addItem(root_name + '  ==>  ' + leaf_name +
+                                      ' ' + parse_content('xyzo'))
+            gui.listWidget_jac.addItem(root_name + '  ==>  ' + leaf_name +
+                                       ' ' + parse_content('xyzrpY'))
 
     # Checking checkboxes
     gui.checkBox_ftm.setChecked(True)
@@ -1251,7 +1374,6 @@ def open_file_dialog(gui, progress_bar):
     init_gui_from_robot(gui, robot_obj)
 
 
-
 def update_settings(gui):
     """
     Description
@@ -1276,6 +1398,8 @@ def update_settings(gui):
     settings["filename"] = gui.lineEdit_fname.text()
     ind = gui.comboBox_language.currentIndex()
     settings["language"] = gui.comboBox_language.itemText(ind)
+    settings["optimization_level"] = gui.comboBox_optimization_level\
+        .currentIndex()
 
 
 def generate(gui):
@@ -1334,10 +1458,12 @@ def generate(gui):
     comjac = gui.checkBox_com_jac.isChecked()
 
     language = Language(settings["language"])
+    optimization_level = settings["optimization_level"]
 
     generate_everything(robot_obj, ftm, btm,
                         fk, jac, com, comjac,
                         polynomial_trajectories,
+                        optimization_level,
                         language,
                         path + '../generated/' + settings["filename"])
 
@@ -1435,11 +1561,7 @@ def main():
     # Forward Kinematics .....................................................
 
     ui.pushButton_fk_add.clicked \
-        .connect(lambda:
-                 add_fk_jac(ui.listWidget_fk,
-                            ui.comboBox_fk_origin,
-                            ui.comboBox_fk_destination,
-                            True))
+        .connect(lambda: add_fk_jac(ui, True))
 
     ui.pushButton_fk_del.clicked \
         .connect(lambda:
@@ -1448,11 +1570,7 @@ def main():
     # Jacobians ..............................................................
 
     ui.pushButton_jac_add.clicked \
-        .connect(lambda:
-                 add_fk_jac(ui.listWidget_jac,
-                            ui.comboBox_jac_origin,
-                            ui.comboBox_jac_destination,
-                            False))
+        .connect(lambda: add_fk_jac(ui, False))
     ui.pushButton_jac_del.clicked \
         .connect(lambda:
                  del_fk_jac(ui.listWidget_jac,
