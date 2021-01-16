@@ -9,6 +9,61 @@ import re
 from anytree import Node
 
 
+# Get rid of scientific notations ____________________________________________
+
+def scistrtodblstr(scistr, double=True):
+    """
+    Converts a scientific notation string to a double notation string
+
+    Parameters
+    ----------
+    scistr : string
+        scientific notation double
+    double : boolean
+        if False, adds a f after the number : 1.0 become 1.0f
+
+    Returns
+    -------
+    Double notation string
+
+    """
+    if 'e' not in scistr:
+        return scistr
+    e = scistr.find('e')
+    if '.' not in scistr:
+        afterPoint = e
+    else:
+        afterPoint = e - scistr.find('.')
+    afterPoint -= int(scistr[e + 1:])
+    fl = float(scistr)
+    forma = f"%.{max(afterPoint - 1, 1)}f"
+    return str(forma % fl) + ('' if double else 'f')
+
+
+def convert_all_sci_to_dbl(string):
+    """
+    Converts  all the numbers written in scientific notation to double
+    notation
+
+    Parameters
+    ----------
+    string : str
+        String to remove scientific notations from
+
+    Returns
+    -------
+    String containing double notations instead of scientific notations
+    """
+
+    # Matching scientific numbers
+    pr = re.compile(r'-?[\d.]+(?:e[\+\-]?\d+)')
+    numbers = pr.findall(string)
+
+    for number in set(numbers):
+        string = string.replace(number, scistrtodblstr(number))
+    return string
+
+
 # Getting operators with the same precedence _________________________________
 
 def same_precedence_opers(op):
@@ -855,6 +910,7 @@ def find_everything(string):
     all_operations = []
 
     string = ' ' + string.replace(' ', '') + '  '
+    string = convert_all_sci_to_dbl(string)
 
     # All functions ..........................................................
 
