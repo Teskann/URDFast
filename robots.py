@@ -5,7 +5,7 @@ Robot Objects
 
 from anytree import Node, RenderTree, Walker
 from URDF import URDF
-from sympy import Matrix, zeros, factor
+from sympy import Matrix, zeros, factor, ones, eye
 from joints import JointURDF, JointDH
 from links import LinkURDF, LinkDH
 from dh_params import dh
@@ -29,10 +29,10 @@ class Robot:
     name : str
         Robot Name. If the robot has no name, it will be named "no_name"
     
-    links : List of 'Link'
+    links : List of links.Link
         List containing all the Links of the Robot.
         
-    joints : List of 'Joint'
+    joints : List of joints.Joint
         List containing all the Joints of the Robot.
         
     tree : anytree.render.RenderTree
@@ -43,6 +43,9 @@ class Robot:
             - For Joints
                 joint_k
             where k is the number of the Link/Joint in the list links/joints
+
+    mass : float
+        Mass of the robot
 
     saved_fk : dict of dict of sympy.matrices.dense.MutableDenseMatrix
         Variable saving the forward kinematics that have already been computed
@@ -55,6 +58,12 @@ class Robot:
         to  save  time if there is a need to compute it again. The keys of the
         first  dict  are  the  origins  and  the  keys  of  the second are the
         destinations.
+
+    saved_com : sympy.matrices.dense.MutableDenseMatrix or None
+        Variable saving the center of mass expression of the robot.
+
+    saved_com_jac : sympy.matrices.dense.MutableDenseMatrix or None
+        Variable saving the jacobian of the center of mass of the robot.
 
     """
 
@@ -77,6 +86,15 @@ class Robot:
 
     # Saved Jacobians
     saved_jac = {}
+
+    # Saved center of mass
+    saved_com = None
+
+    # Saved center of mass jacobian
+    saved_com_jac = None
+
+    # Robot mass
+    mass = 0
 
     # Methods ================================================================
 
@@ -286,7 +304,9 @@ class Robot:
 
         if origin in self.saved_fk.keys():
             if destination in self.saved_fk[origin].keys():
-                return self.saved_fk[origin][destination]
+                if self.saved_fk[origin][destination][1] >= \
+                        optimization_level:
+                    return self.saved_fk[origin][destination][0]
 
         # 1 - Getting the path in the tree ...................................
 
@@ -318,7 +338,7 @@ class Robot:
         # Save the FK
         if origin not in self.saved_fk.keys():
             self.saved_fk[origin] = {}
-        self.saved_fk[origin][destination] = T
+        self.saved_fk[origin][destination] = [T, optimization_level]
 
         return T
 
@@ -387,7 +407,7 @@ class Robot:
 
         Returns
         -------
-        Jx : sympy.matrices.dense.MutableDenseMatrix
+        J : sympy.matrices.dense.MutableDenseMatrix
             Jacobian matrix between origin and destination
             
         list_symbols : list of sympy.core.symbol.Symbol
@@ -400,7 +420,9 @@ class Robot:
 
         if origin in self.saved_jac.keys():
             if destination in self.saved_jac[origin].keys():
-                return self.saved_jac[origin][destination]
+                if self.saved_jac[origin][destination][1] >= \
+                        optimization_level:
+                    return self.saved_jac[origin][destination][0]
 
         fk = self.forward_kinematics(origin, destination)
 
@@ -431,9 +453,143 @@ class Robot:
         # Save the Jac
         if origin not in self.saved_jac.keys():
             self.saved_jac[origin] = {}
-        self.saved_jac[origin][destination] = (JJ, list_symbols)
+        self.saved_jac[origin][destination] = [(JJ, list_symbols),
+                                               optimization_level]
 
         return JJ, list_symbols
+
+    # Center of mass _________________________________________________________
+
+    def com(self, optimization_level):
+        """
+        Computes the center of mass of the robot.
+        Returned as a 3x1 vector.
+
+        Parameters
+        ----------
+
+        optimization_level : int
+            0 or 1 => The CoM is not simplified at all
+            2 => The CoM is factored
+            3 => The CoM is simplified
+
+        Returns
+        -------
+
+        com : sympy.matrices.dense.MutableDenseMatrix
+            Center of mass of the robot in the root (world) frame
+
+        Raises
+        ------
+
+        ValueError : If the robot mass is null
+        """
+
+        if self.mass == 0:
+            raise ValueError("Cannot compute the robot center of mass "
+                             "because its mass is equal to 0 kg")
+
+        if self.saved_com is not None:
+            if self.saved_com[1] >= optimization_level:
+                return self.saved_com[0]
+
+        def recursive_com(link, frame):
+            """
+            Recursive function to compute the center of mass
+            Parameters
+            ----------
+            link : links.Link
+                Link from which you want to compute the center of mass.
+
+            frame : links.link
+                Frame in which you want to express the CoM
+
+            Returns
+            -------
+
+            com : sympy.matrices.dense.MutableDenseMatrix
+                Jacobian matrix between origin and destination
+
+            """
+            m = link.mass / self.mass
+            hc = ones(4, 1)
+            hc[:3, :] = link.com
+            if link.is_root:
+                T = eye(4, 4)
+            else:
+                T = self.forward_kinematics(f"link_{frame.link_id}",
+                                            f"joint_{link.child_joints[0]}")
+            cm = m * (T @ hc)
+            if link.is_terminal:
+                return cm
+            else:
+                for child in link.parent_joints:
+                    cm += recursive_com(self.links[self.joints[child].child],
+                                        frame)
+                return cm
+
+        com_expr = None
+        for link in self.links:
+            if link.is_root:
+                com_expr = recursive_com(link, link)
+                break
+
+        if optimization_level > 1:
+            com_expr = factor(com_expr).evalf().nsimplify(tolerance=1e-10)\
+                .evalf()
+        if optimization_level > 2:
+            com_expr = com_expr.simplify().nsimplify(tolerance=1e-10).evalf()
+
+        com_expr = com_expr[:3, :]
+        self.saved_com = [com_expr, optimization_level]
+
+        return com_expr
+
+    # CoM Jacobian ___________________________________________________________
+
+    def com_jacobian(self, optimization_level):
+        """
+        Computes  the  jacobian  of  the  center  of  mass  (only position, no
+        orientation).
+
+        Parameters
+        ----------
+        optimization_level : int
+            0 or 1 => The CoM Jacobian is not simplified at all
+            2 => The CoM Jacobian is factored
+            3 => The CoM Jacobian is simplified
+
+        Returns
+        -------
+
+        com_jac : sympy.matrices.dense.MutableDenseMatrix
+            Jacobian  of  the  center of mass of the robot in the root (world)
+            frame.
+        """
+
+        if self.saved_com_jac is not None:
+            if self.saved_com_jac[1] >= optimization_level:
+                return self.saved_com_jac[0]
+
+        com_expr = self.com(optimization_level)
+
+        # Getting all the symbols (DOFs)
+        list_symbols = list(com_expr.free_symbols)
+
+        # Sort by name ascending
+        list_symbols.sort(key=lambda sym: sym.name)
+
+        com_jac = com_expr.jacobian(list_symbols)
+
+        if optimization_level > 1:
+            com_jac = factor(com_jac).evalf().nsimplify(tolerance=1e-10) \
+                .evalf()
+        if optimization_level > 2:
+            com_jac = com_jac.simplify().nsimplify(tolerance=1e-10).evalf()
+
+        self.saved_com_jac = [com_jac, optimization_level]
+
+        return com_jac
 
     # Converting to String ___________________________________________________
 
@@ -596,8 +752,14 @@ class RobotURDF(Robot):
         # Setting Global Tree
         self.tree = RenderTree(all_link_nodes[root_link_id])
 
+        self.mass = 0
+        for link in self.links:
+            self.mass += link.mass
+
         self.saved_fk = {}
         self.saved_jac = {}
+        self.saved_com = None
+        self.saved_com_jac = None
 
 
 # ----------------------------------------------------------------------------
@@ -667,8 +829,14 @@ class RobotDH(Robot):
 
         self.tree = RenderTree(all_link_nodes[0])
 
+        self.mass = 0
+        for link in self.links:
+            self.mass += link.mass
+
         self.saved_fk = {}
         self.saved_jac = {}
+        self.saved_com = None
+        self.saved_com_jac = None
 
 
 # ----------------------------------------------------------------------------

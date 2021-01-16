@@ -890,7 +890,7 @@ def generate_all_jac(robot, list_origin, list_dest, list_content,
 
 # Generate Center of Mass Position ___________________________________________
 
-def generate_com(robot, language=Language('python')):
+def generate_com(robot, optimization_level, language=Language('python')):
     """
     Generate the code for the center of mass of the robot
 
@@ -898,6 +898,12 @@ def generate_com(robot, language=Language('python')):
     ----------
     robot : robots.Robot
         Robot you want to generate the center of mass function from
+
+    optimization_level : int
+        - 0 => CoM is computed numerically (fastest to generate, slowest code
+        - 1 => CoM is computed analytically but is not simplified
+        - 2 => CoM is computed analytically and is factored
+        - 3 => CoM is computed analytically and is simplified
     
     language : Language.Language, optional
         Language you want the code to be generated to
@@ -924,91 +930,118 @@ def generate_com(robot, language=Language('python')):
         return language.comment_line + ' Center of mass function can not be' + \
                ' generated because the robot mass is null.'
 
-    # Tree iteration .........................................................
-
-    varss = []
-
-    # Initial transformation
-    var = {'name': 'T',
-           'value': '_eye_4_4_',
-           'type': 'mat'}
-
-    varss.append(var)
-
-    saved_joints_T = []
     params = []
-    expr = ''
+    varss = []
+    if optimization_level == 0:
 
-    last_u = 0
+        # Tree iteration .....................................................
 
-    for node in PreOrderIter(robot.tree.node):
-        obj_type = node.name.split('_')[0]
-        obj_nb = int(node.name.split('_')[1])
+        # Initial transformation
+        var = {'name': 'T',
+               'value': '_eye_4_4_',
+               'type': 'mat'}
 
-        if obj_type == 'link':
-            relative_mass = robot.links[obj_nb].mass / mass
-            # Ignoring null mass links
-            if relative_mass == 0:
-                continue
-            cm = robot.links[obj_nb].com
-            pos_val = f'#mat#4#1#{str(cm[0, 0])}#{str(cm[1, 0])}#' + \
-                      f'{str(cm[2, 0])}#1.0#'
-            pos_var = {'name': f'com_{obj_nb}_xyz',
-                       'value': pos_val,
+        varss.append(var)
+
+        saved_joints_T = []
+        params = []
+        expr = ''
+
+        last_u = 0
+
+        for node in PreOrderIter(robot.tree.node):
+            obj_type = node.name.split('_')[0]
+            obj_nb = int(node.name.split('_')[1])
+
+            if obj_type == 'link':
+                relative_mass = robot.links[obj_nb].mass / mass
+                # Ignoring null mass links
+                if relative_mass == 0:
+                    continue
+                cm = robot.links[obj_nb].com
+                pos_val = f'#mat#4#1#{str(cm[0, 0])}#{str(cm[1, 0])}#' + \
+                          f'{str(cm[2, 0])}#1.0#'
+                pos_var = {'name': f'com_{obj_nb}_xyz',
+                           'value': pos_val,
+                           'type': 'vect'}
+                varss.append(pos_var)
+                var = {'name': f'com_{obj_nb}',
+                       'value': f'{relative_mass}*T@com_{obj_nb}_xyz',
                        'type': 'vect'}
-            varss.append(pos_var)
-            var = {'name': f'com_{obj_nb}',
-                   'value': f'{relative_mass}*T@com_{obj_nb}_xyz',
-                   'type': 'vect'}
-            varss.append(var)
-            expr += f'+com_{obj_nb}'
-
-            last_u = len(varss)
-
-        elif obj_type == 'joint':
-            joint = robot.joints[obj_nb]
-
-            # Parameters
-            all_sym = joint.T.free_symbols
-            params_tmp = get_parameters(all_sym)
-            params += get_parameters(all_sym)
-            T_fct = 'MATLAB_PREFIXT_' + joint.name + '('
-
-            params_tmp.sort(key=lambda x: x['name'])
-
-            for i_p, par in enumerate(params_tmp):
-                T_fct += par['name']
-                if i_p < len(params_tmp) - 1:
-                    T_fct += ','
-            T_fct += ')'
-
-            if len(robot.links[joint.child].parent_joints) > 1:
-                var2 = {'name': f'MATLAB_PREFIXT_{obj_nb}',
-                        'value': f'T@{T_fct}',
-                        'type': 'mat'}
-                varss.append(var2)
-                saved_joints_T.append(obj_nb)
-                var = {'name': 'T',
-                       'value': f'MATLAB_PREFIXT_{obj_nb}',
-                       'type': ''}
                 varss.append(var)
+                expr += f'+com_{obj_nb}'
 
-            elif any(x in robot.links[joint.parent].child_joints for x in \
-                     saved_joints_T):
-                num = robot.links[joint.parent].child_joints[0]
-                var = {'name': 'T',
-                       'value': f'MATLAB_PREFIXT_{num}@{T_fct}',
-                       'type': ''}
-                varss.append(var)
-            else:
-                var = {'name': 'T',
-                       'value': f'T@{T_fct}',
-                       'type': ''}
-                varss.append(var)
+                last_u = len(varss)
 
-    descrq = f'Vector of length {len(params)} containing all the degrees of ' + \
-             'freedom of the robot that have ' + \
-             'an effect on the center of mass position. This vector contains:'
+            elif obj_type == 'joint':
+                joint = robot.joints[obj_nb]
+
+                # Parameters
+                all_sym = joint.T.free_symbols
+                params_tmp = get_parameters(all_sym)
+                params += get_parameters(all_sym)
+                T_fct = 'MATLAB_PREFIXT_' + joint.name + '('
+
+                params_tmp.sort(key=lambda x: x['name'])
+
+                for i_p, par in enumerate(params_tmp):
+                    T_fct += par['name']
+                    if i_p < len(params_tmp) - 1:
+                        T_fct += ','
+                T_fct += ')'
+
+                if len(robot.links[joint.child].parent_joints) > 1:
+                    var2 = {'name': f'MATLAB_PREFIXT_{obj_nb}',
+                            'value': f'T@{T_fct}',
+                            'type': 'mat'}
+                    varss.append(var2)
+                    saved_joints_T.append(obj_nb)
+                    var = {'name': 'T',
+                           'value': f'MATLAB_PREFIXT_{obj_nb}',
+                           'type': ''}
+                    varss.append(var)
+
+                elif any(x in robot.links[joint.parent].child_joints for x in \
+                         saved_joints_T):
+                    num = robot.links[joint.parent].child_joints[0]
+                    var = {'name': 'T',
+                           'value': f'MATLAB_PREFIXT_{num}@{T_fct}',
+                           'type': ''}
+                    varss.append(var)
+                else:
+                    var = {'name': 'T',
+                           'value': f'T@{T_fct}',
+                           'type': ''}
+                    varss.append(var)
+        # Removing useless variables
+        to_remove = []
+        last_T = None
+        T_nb = 0
+        for i_v, var in enumerate(varss):
+            if var['name'] == 'T':
+                if last_T == i_v - 1 and var['value'][:2] != 'T@':
+                    to_remove.append(last_T)
+                    if T_nb == 2:
+                        varss[i_v]['value'] = varss[i_v]['value'][2:]
+                        varss[i_v]['type'] = 'mat'
+                last_T = i_v
+
+        varss = varss[:last_u]
+        to_remove.sort(reverse=True)
+        for rem in to_remove:
+            varss.pop(rem)
+    else:
+        com = robot.com(optimization_level)
+
+        all_sym = list(com.free_symbols)
+
+        all_sym.sort(key=lambda sym: sym.name)
+
+        params += get_parameters(all_sym)
+
+    descrq = (f'Vector of length {len(params)} containing all the degrees of '
+              'freedom of the robot that have an effect on the center of mass'
+              ' position. This vector contains:')
     for i_p, param in enumerate(params):
         descrq += f'\n        - q[{i_p + language.indexing_0}] = ' + \
                   param['name']
@@ -1016,48 +1049,37 @@ def generate_com(robot, language=Language('python')):
 
     paramq = {'name': 'q', 'type': 'vect', 'description': descrq}
 
-    # Removing useless variables
-    to_remove = []
-    last_T = None
-    T_nb = 0
-    for i_v, var in enumerate(varss):
-        if var['name'] == 'T':
-            if last_T == i_v - 1 and var['value'][:2] != 'T@':
-                to_remove.append(last_T)
-                if T_nb == 2:
-                    varss[i_v]['value'] = varss[i_v]['value'][2:]
-                    varss[i_v]['type'] = 'mat'
-            last_T = i_v
-
-    varss = varss[:last_u]
-    to_remove.sort(reverse=True)
-    for rem in to_remove:
-        varss.pop(rem)
-
     for i_v, var in enumerate(varss):
         for i_p, param in enumerate(params):
             if not varss[i_v]['value'][0] == '#':
                 varss[i_v]['value'] = replace_var(var['value'], param['name'],
                                                   f'q[{i_p + language.indexing_0}]')
 
+    if optimization_level == 0:
+        dimensions = (f'(4 x 1) {language.matrix_type} in homogeneous '
+                      'coordinates. The first three coordinates represent the'
+                      ' X, Y and Z positions of the CoM and the 4th coordinat'
+                      'e is always equal to 1.')
+    else:
+        dimensions = f'(3 x 1) {language.matrix_type} (X, Y and Z).'
     docstr = 'Returns the center of mass of the robot in the root link frame.' + \
-             'The center of mass of the whole structure is computed. The ' \
+             ' The center of mass of the whole structure is computed. The ' \
              'result' + \
-             f' is returned as a (4 x 1) {language.matrix_type} in ' \
-             f'homogeneous ' + \
-             'coordinates. The first three coordinates represent the X, ' \
-             'Y and Z ' + \
-             'positions of the CoM and the 4th coordinate is always equal ' \
-             'to 1 '
+             f' is returned as a {dimensions}'
 
-    code += language.generate_fct('com', [paramq], expr[1:], varss, docstr,
-                                  matrix_dims=(1, 1))
+    if optimization_level == 0:
+        code += language.generate_fct('com', [paramq], expr[1:], varss,
+                                      docstr, matrix_dims=(1, 1))
+    else:
+        code += generate_code_from_sym_mat(com, 'com', language, docstr,
+                                           input_is_vector=True)
     return code
 
 
 # Generate Center of Mass Jacobian ___________________________________________
 
-def generate_com_jacobian(robot, language=Language('python')):
+def generate_com_jacobian(robot, optimization_level,
+                          language=Language('python')):
     """
     Generate the code for the jacobian of the center of mass of the robot
 
@@ -1065,10 +1087,17 @@ def generate_com_jacobian(robot, language=Language('python')):
     ----------
     robot : robots.Robot
         Robot you want to generate the center of mass jacobian function from
+
+    optimization_level : int
+        - 0 => CoM  Jacobian  is  computed  numerically  (fastest to generate,
+        slowest code
+        - 1 => CoM Jacobian is computed analytically but is not simplified
+        - 2 => CoM Jacobian is computed analytically and is factored
+        - 3 => CoM Jacobian is computed analytically and is simplified
     
     language : Language.Language, optional
         Language you want the code to be generated to
-        Defalut is Language('python')
+        Default is Language('python')
 
     Returns
     -------
@@ -1081,130 +1110,158 @@ def generate_com_jacobian(robot, language=Language('python')):
     code = language.title("Jacobian of the Center of Mass of the Robot", 0)
     code += '\n\n'
 
-    # Total Mass of the robot ................................................
-
-    mass = 0
-    nb_dof = 0
-    for link in robot.links:
-        if link.mass != 0:
-            mass += link.mass
-            nb_dof += 1
-
-    if mass == 0:
-        return language.comment_line + ' Center of mass jacobian function ' + \
-               'can not be generated because the robot mass is null.'
-
-    # Tree iteration .........................................................
-
-    varss = []
-
-    # Init Jacobian
-    varss.append({'name': 'Jac',
-                  'value': f"_zeros_3_{nb_dof}_",
-                  'type': 'mat'})
-
-    # Initial transformation
-    var = {'name': 'T',
-           'value': '_eye_4_4_',
-           'type': 'mat'}
-
-    varss.append(var)
-
-    saved_joints_T = []
     params = []
-    expr = 'Jac'
-    l_declared = False
-    z_declared = False
-    i_jac = language.indexing_0
-    last_u = 0
+    varss = []
+    if optimization_level == 0:
+        # Total Mass of the robot ............................................
 
-    for node in PreOrderIter(robot.tree.node):
-        obj_type = node.name.split('_')[0]
-        obj_nb = int(node.name.split('_')[1])
+        mass = 0
+        nb_dof = 0
+        for link in robot.links:
+            if link.mass != 0:
+                mass += link.mass
+                nb_dof += 1
 
-        if obj_type == 'link':
-            relative_mass = robot.links[obj_nb].mass / mass
-            # Ignoring null mass links
-            if relative_mass == 0:
-                continue
-            cm = robot.links[obj_nb].com
-            pos_val = f'#mat#4#1#{str(cm[0, 0])}#{str(cm[1, 0])}#' + \
-                      f'{str(cm[2, 0])}#1.0#'
-            pos_var = {'name': f'com_{obj_nb}_xyz',
-                       'value': pos_val,
+        if mass == 0:
+            return language.comment_line + ' Center of mass jacobian function ' + \
+                   'can not be generated because the robot mass is null.'
+
+        # Tree iteration .........................................................
+
+        varss = []
+
+        # Init Jacobian
+        varss.append({'name': 'Jac',
+                      'value': f"_zeros_3_{nb_dof}_",
+                      'type': 'mat'})
+
+        # Initial transformation
+        var = {'name': 'T',
+               'value': '_eye_4_4_',
+               'type': 'mat'}
+
+        varss.append(var)
+
+        saved_joints_T = []
+        params = []
+        expr = 'Jac'
+        l_declared = False
+        z_declared = False
+        i_jac = language.indexing_0
+        last_u = 0
+
+        for node in PreOrderIter(robot.tree.node):
+            obj_type = node.name.split('_')[0]
+            obj_nb = int(node.name.split('_')[1])
+
+            if obj_type == 'link':
+                relative_mass = robot.links[obj_nb].mass / mass
+                # Ignoring null mass links
+                if relative_mass == 0:
+                    continue
+                cm = robot.links[obj_nb].com
+                pos_val = f'#mat#4#1#{str(cm[0, 0])}#{str(cm[1, 0])}#' + \
+                          f'{str(cm[2, 0])}#1.0#'
+                pos_var = {'name': f'com_{obj_nb}_xyz',
+                           'value': pos_val,
+                           'type': 'vect'}
+                varss.append(pos_var)
+                var = {'name': 'com',
+                       'value': f'{relative_mass}*T@com_{obj_nb}_xyz',
                        'type': 'vect'}
-            varss.append(pos_var)
-            var = {'name': 'com',
-                   'value': f'{relative_mass}*T@com_{obj_nb}_xyz',
-                   'type': 'vect'}
-            varss.append(var)
-            l_type = '' if l_declared else 'vect'
-            var_l = {'name': 'L',
-                     'value': f'com0{language.operators["[]"][0][0]}{language.indexing_0}:' + \
-                              f'{language.indexing_0 + 2 + language.subscription}' + \
-                              f']-com[{language.indexing_0}:' + \
-                              f'{language.indexing_0 + 2 + language.subscription}{language.operators["[]"][0][1]}',
-                     'type': l_type}
-            l_declared = True
-            varss.append(var_l)
-            z_type = '' if z_declared else 'vect'
-            var_z = {'name': 'Z',
-                     'value': f'T{language.operators["[]"][0][0]}{language.indexing_0}:' + \
-                              f'{language.indexing_0 + 2 + language.subscription},' + \
-                              f'{language.indexing_0 + 2}{language.operators["[]"][0][1]}',
-                     'type': z_type}
-            z_declared = True
-            varss.append(var_z)
-            var_j = {'name': f'Jac{language.operators["[]"][0][0]}{language.indexing_0}:' + \
-                             f'{language.indexing_0 + 2 + language.subscription}' + \
-                             f',{i_jac}{language.operators["[]"][0][1]}',
-                     'value': 'cross(Z,L)',
-                     'type': ''}
-            varss.append(var_j)
-            last_u = len(varss)
-            i_jac += 1
+                varss.append(var)
+                l_type = '' if l_declared else 'vect'
+                var_l = {'name': 'L',
+                         'value': f'com0{language.operators["[]"][0][0]}{language.indexing_0}:' + \
+                                  f'{language.indexing_0 + 2 + language.subscription}' + \
+                                  f']-com[{language.indexing_0}:' + \
+                                  f'{language.indexing_0 + 2 + language.subscription}{language.operators["[]"][0][1]}',
+                         'type': l_type}
+                l_declared = True
+                varss.append(var_l)
+                z_type = '' if z_declared else 'vect'
+                var_z = {'name': 'Z',
+                         'value': f'T{language.operators["[]"][0][0]}{language.indexing_0}:' + \
+                                  f'{language.indexing_0 + 2 + language.subscription},' + \
+                                  f'{language.indexing_0 + 2}{language.operators["[]"][0][1]}',
+                         'type': z_type}
+                z_declared = True
+                varss.append(var_z)
+                var_j = {'name': f'Jac{language.operators["[]"][0][0]}{language.indexing_0}:' + \
+                                 f'{language.indexing_0 + 2 + language.subscription}' + \
+                                 f',{i_jac}{language.operators["[]"][0][1]}',
+                         'value': 'cross(Z,L)',
+                         'type': ''}
+                varss.append(var_j)
+                last_u = len(varss)
+                i_jac += 1
 
-        elif obj_type == 'joint':
-            joint = robot.joints[obj_nb]
+            elif obj_type == 'joint':
+                joint = robot.joints[obj_nb]
 
-            # Parameters
-            all_sym = joint.T.free_symbols
-            params_tmp = get_parameters(all_sym)
-            params += get_parameters(all_sym)
-            T_fct = 'MATLAB_PREFIXT_' + joint.name + '('
+                # Parameters
+                all_sym = joint.T.free_symbols
+                params_tmp = get_parameters(all_sym)
+                params += get_parameters(all_sym)
+                T_fct = 'MATLAB_PREFIXT_' + joint.name + '('
 
-            params_tmp.sort(key=lambda x: x['name'])
+                params_tmp.sort(key=lambda x: x['name'])
 
-            for i_p, par in enumerate(params_tmp):
-                T_fct += par['name']
-                if i_p < len(params_tmp) - 1:
-                    T_fct += ','
+                for i_p, par in enumerate(params_tmp):
+                    T_fct += par['name']
+                    if i_p < len(params_tmp) - 1:
+                        T_fct += ','
+                    else:
+                        T_fct += ')'
+
+                if len(robot.links[joint.child].parent_joints) > 1:
+                    var2 = {'name': f'MATLAB_PREFIXT_{obj_nb}',
+                            'value': f'T@{T_fct}',
+                            'type': 'mat'}
+                    varss.append(var2)
+                    saved_joints_T.append(obj_nb)
+                    var = {'name': 'T',
+                           'value': f'MATLAB_PREFIXT_{obj_nb}',
+                           'type': ''}
+                    varss.append(var)
+
+                elif any(x in robot.links[joint.parent].child_joints for x in \
+                         saved_joints_T):
+                    num = robot.links[joint.parent].child_joints[0]
+                    var = {'name': 'T',
+                           'value': f'MATLAB_PREFIXT_{num}@{T_fct}',
+                           'type': ''}
+                    varss.append(var)
                 else:
-                    T_fct += ')'
+                    var = {'name': 'T',
+                           'value': f'T@{T_fct}',
+                           'type': ''}
+                    varss.append(var)
 
-            if len(robot.links[joint.child].parent_joints) > 1:
-                var2 = {'name': f'MATLAB_PREFIXT_{obj_nb}',
-                        'value': f'T@{T_fct}',
-                        'type': 'mat'}
-                varss.append(var2)
-                saved_joints_T.append(obj_nb)
-                var = {'name': 'T',
-                       'value': f'MATLAB_PREFIXT_{obj_nb}',
-                       'type': ''}
-                varss.append(var)
+        # Removing useless variables
+        to_remove = []
+        last_T = None
+        T_nb = 0
+        for i_v, var in enumerate(varss):
+            if var['name'] == 'T':
+                T_nb += 1
+                if last_T == i_v - 1 and var['value'][:2] != 'T@':
+                    to_remove.append(last_T)
+                    if T_nb == 2:
+                        varss[i_v]['value'] = varss[i_v]['value'][2:]
+                        varss[i_v]['type'] = 'mat'
+                last_T = i_v
 
-            elif any(x in robot.links[joint.parent].child_joints for x in \
-                     saved_joints_T):
-                num = robot.links[joint.parent].child_joints[0]
-                var = {'name': 'T',
-                       'value': f'MATLAB_PREFIXT_{num}@{T_fct}',
-                       'type': ''}
-                varss.append(var)
-            else:
-                var = {'name': 'T',
-                       'value': f'T@{T_fct}',
-                       'type': ''}
-                varss.append(var)
+        varss = varss[:last_u]
+        to_remove.sort(reverse=True)
+        for rem in to_remove:
+            varss.pop(rem)
+    else:
+        jac = robot.com_jacobian(optimization_level)
+        all_sym = list(jac.free_symbols)
+        all_sym.sort(key=lambda sym: sym.name)
+        params += get_parameters(all_sym)
+        nb_dof = len(all_sym)
 
     descrq = 'Vector of all the degrees of freedom of the robot that have ' \
              'an effect on the center of mass position. This vector ' \
@@ -1216,44 +1273,26 @@ def generate_com_jacobian(robot, language=Language('python')):
 
     paramq = {'name': 'q', 'type': 'vect', 'description': descrq}
 
-    param_com0 = {'name': 'com0',
-                  'type': 'vect',
-                  'description': 'Point from which you want to compute the'
-                                 'Jacobian of the center of Mass. This '
-                                 'point is '
-                                 'expressed in homogeneous coordinates as a '
-                                 '(4 x 1)'
-                                 f' {language.vector_type}. '
-                                 'The first three coordinates represent the '
-                                 'X, Y and Z '
-                                 'positions of the CoM and the 4th '
-                                 'coordinate must always be equal'
-                                 ' to 1'}
-
-    # Removing useless variables
-    to_remove = []
-    last_T = None
-    T_nb = 0
-    for i_v, var in enumerate(varss):
-        if var['name'] == 'T':
-            T_nb += 1
-            if last_T == i_v - 1 and var['value'][:2] != 'T@':
-                to_remove.append(last_T)
-                if T_nb == 2:
-                    varss[i_v]['value'] = varss[i_v]['value'][2:]
-                    varss[i_v]['type'] = 'mat'
-            last_T = i_v
-
-    varss = varss[:last_u]
-    to_remove.sort(reverse=True)
-    for rem in to_remove:
-        varss.pop(rem)
-
     for i_v, var in enumerate(varss):
         for i_p, param in enumerate(params):
             varss[i_v]['value'] = replace_var(var['value'], param['name'],
                                               f'q[{i_p + language.indexing_0}]')
-    paar = [paramq, param_com0]
+    paar = [paramq]
+    if optimization_level == 0:
+        param_com0 = {'name': 'com0',
+                      'type': 'vect',
+                      'description': 'Point from which you want to compute the'
+                                     'Jacobian of the center of Mass. This '
+                                     'point is '
+                                     'expressed in homogeneous coordinates as a '
+                                     '(4 x 1)'
+                                     f' {language.vector_type}. '
+                                     'The first three coordinates represent the '
+                                     'X, Y and Z '
+                                     'positions of the CoM and the 4th '
+                                     'coordinate must always be equal'
+                                     ' to 1'}
+        paar.append(param_com0)
 
     origin_name = 'world'
     dest_name = 'the center of mass'
@@ -1261,29 +1300,27 @@ def generate_com_jacobian(robot, language=Language('python')):
     docstr = 'Returns the Jacobian of the center of mass of the robot. ' + \
              'This matrix is ' + \
              f'returned as a (3 x {nb_dof}) matrix where every column is the' + \
-             'derivative of the position of the CoM (X, Y and Z) with ' \
+             ' derivative of the position of the CoM (X, Y and Z) with ' \
              'respect' + \
              ' to a degree ' + \
-             'of freedom. The result is expressed in the root link frame. ' + \
+             'of freedom. The result is expressed in the root link frame.\n' + \
              f'    - The line 1 is the derivative of X position of {dest_name}' + \
              f' in the {origin_name} frame,\n' + \
              f'    - The line 2 is the derivative of Y position of {dest_name}' + \
              f' in the {origin_name} frame,\n' + \
              f'    - The line 3 is the derivative of Z position of {dest_name}' + \
-             f' in the {origin_name} frame,\n' + \
-             '    - The line 4 is the derivative of the roll orientation of' + \
-             f' {dest_name} in the {origin_name} frame,\n' + \
-             '    - The line 5 is the derivative of the pitch orientation of' + \
-             f' {dest_name} in the {origin_name} frame,\n' + \
-             '    - The line 6 is the derivative of the yaw orientation of' + \
-             f' {dest_name} in the {origin_name} frame,\n' + \
+             f' in the {origin_name} frame\n' + \
              'Here is the list of all the derivative variables :'
     for i_p, param in enumerate(params):
         docstr += f'\n    - Column {language.indexing_0 + i_p} : ' + \
                   f'{param["name"]}'
 
-    code += language.generate_fct('jacobian_com', paar, expr, varss, docstr,
-                                  matrix_dims=(1, 1))
+    if optimization_level == 0:
+        code += language.generate_fct('jacobian_com', paar, expr, varss,
+                                      docstr, matrix_dims=(1, 1))
+    else:
+        code += generate_code_from_sym_mat(jac, 'jacobian_com', language,
+                                           docstr, input_is_vector=True)
     return code
 
 
@@ -1692,11 +1729,11 @@ def generate_everything(robot, list_ftm, list_btm, list_fk, list_jac, com,
 
         if com:
             code += '\n\n'
-            code += generate_com(robot, language)
+            code += generate_com(robot, optimization_level, language)
 
         if com_jac:
             code += '\n\n'
-            code += generate_com_jacobian(robot, language)
+            code += generate_com_jacobian(robot, optimization_level, language)
 
         if polynomial_trajectories:
             code += \
