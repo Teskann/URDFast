@@ -15,6 +15,30 @@ from polynomial_trajectory import get_solution, verify_solution, get_equations
 from anytree import PreOrderIter
 
 
+# Update progressbar _________________________________________________________
+
+def increment_progressbar(progressbar, increment):
+    """
+    Increment the progressbar
+
+    Parameters
+    ----------
+
+    progressbar : PyQt5.QtWidgets.QProgressBar or None, optional
+        default is None
+        Progressbar to update during the robot creation (used in GUI)
+        If it is None, no progressbar is updated
+
+    increment : float
+        Progressbar value between 0 and 100
+    """
+
+    if progressbar is None:
+        return
+    else:
+        progressbar.setProperty("value", progressbar.value() + increment)
+
+
 # Get the parameters from sympy ______________________________________________
 
 def get_parameters(syms):
@@ -163,7 +187,9 @@ def generate_code_from_sym_mat(sympy_matrix, fname,
 # Generate all matrices ______________________________________________________
 
 def generate_all_matrices(robot, list_ftm, list_btm,
-                          language=Language('python')):
+                          language=Language('python'),
+                          progressbar=None,
+                          progress_increment=0):
     """
     Description
     -----------
@@ -200,7 +226,16 @@ def generate_all_matrices(robot, list_ftm, list_btm,
     
     language : Language.Language, optional
         Language you want the code to be generated to
-        Defalut is Language('python')
+        Default is Language('python')
+
+    progressbar : PyQt5.QtWidgets.QProgressBar or None, optional
+        default is None
+        Progressbar to update during the robot creation (used in GUI)
+        If it is None, no progressbar is updated
+
+    progress_increment : float
+        Progressbar  increment.  Default  is  0.  If progressbar is None, this
+        parameter is ignored.
     
     Returns
     -------
@@ -219,7 +254,9 @@ def generate_all_matrices(robot, list_ftm, list_btm,
 
     # For every joint ........................................................
 
+    kk = 1
     for jj in list_ftm:
+        print(f"Generating Forward Transition Matrix {kk}/{len(list_ftm)}")
         _, i_j = jj.split('_')
         i_j = int(i_j)
         joint = robot.joints[i_j]
@@ -242,6 +279,9 @@ def generate_all_matrices(robot, list_ftm, list_btm,
 
         code += joint_str + '\n\n'
 
+        increment_progressbar(progressbar, progress_increment)
+        kk += 1
+
     if list_btm:
         code += language.title('BACKWARD TRANSITION MATRICES', 0)
 
@@ -249,7 +289,9 @@ def generate_all_matrices(robot, list_ftm, list_btm,
 
     # For every joint ........................................................
 
+    kk = 1
     for jj in list_btm:
+        print(f"Generating Backward Transition Matrix {kk}/{len(list_ftm)}")
         _, i_j = jj.split('_')
         i_j = int(i_j)
         joint = robot.joints[i_j]
@@ -274,6 +316,9 @@ def generate_all_matrices(robot, list_ftm, list_btm,
         code += joint_str
         if i_j < len(robot.joints) - 1:
             code += '\n\n'
+
+        increment_progressbar(progressbar, progress_increment)
+        kk += 1
 
     return code
 
@@ -359,18 +404,19 @@ def generate_fk(robot, origin, destination, content, optimization_level,
     type_dest = destination.split('_')[0]
     dest_name = robot.joints[index_dest].name if type_dest == 'joint' \
         else robot.links[index_dest].name
+
     docstr = (f'Computes the forward kinematics from the {type_origin} '
               f"{origin_name} to the {type_dest} {dest_name}. The result is "
               f"returned as a 4x4 {language.matrix_type} in  homogeneous "
               "coordinates, giving the position and the orientation of "
               f"{dest_name} in the {origin_name} frame.")
 
-    fname = 'fk_' + origin_name + '_' + dest_name
+    fname = 'fk_' + origin_name + '_' + dest_name + "_" + content
 
     # Optimised version ......................................................
 
     if optimization_level > 0:
-        fk = robot.forward_kinematics(origin, destination,
+        fk = robot.forward_kinematics(origin, destination, content=content,
                                       optimization_level=optimization_level)
         return generate_code_from_sym_mat(fk, fname, language, docstr,
                                           input_is_vector=True)
@@ -388,10 +434,6 @@ def generate_fk(robot, origin, destination, content, optimization_level,
 
     # FK function parameters
     params = []
-
-    # First upwards joints
-    if upwards:
-        pass  # TODO
 
     for up_joint_nb in upwards:
         joint = robot.joints[up_joint_nb]
@@ -463,7 +505,9 @@ def generate_fk(robot, origin, destination, content, optimization_level,
 
 def generate_all_fk(robot, list_origin, list_dest, list_content,
                     optimization_level,
-                    language=Language('python')):
+                    language=Language('python'),
+                    progressbar=None,
+                    progress_increment=0):
     """
     Description
     -----------
@@ -514,6 +558,15 @@ def generate_all_fk(robot, list_origin, list_dest, list_content,
     language : Language.Language, optional
         Language you want the code to be generated to
         Default is Language('python')
+
+    progressbar : PyQt5.QtWidgets.QProgressBar or None, optional
+        default is None
+        Progressbar to update during the robot creation (used in GUI)
+        If it is None, no progressbar is updated
+
+    progress_increment : float
+        Progressbar  increment.  Default  is  0.  If progressbar is None, this
+        parameter is ignored.
         
     Returns
     -------
@@ -532,11 +585,14 @@ def generate_all_fk(robot, list_origin, list_dest, list_content,
     code += '\n\n'
 
     for i, origin, in enumerate(list_origin):
+        print(f"Generating Forward Kinematics {i + 1}/{len(list_origin)}")
         code += generate_fk(robot, origin, list_dest[i],
                             list_content[i], optimization_level,
                             language=language)
         if i < len(list_origin) - 1:
             code += '\n\n'
+
+        increment_progressbar(progressbar, progress_increment)
 
     return code
 
@@ -681,28 +737,20 @@ def generate_jacobian(robot, origin, destination, content,
                       'type': 'mat'})
 
         varss.append({'name': 'L',
-                      'value': f'p0-T{language.operators["[]"][0][0]}{language.indexing_0}:' + \
-                               f'{language.indexing_0 + 2 + language.subscription}' + \
-                               f',{language.indexing_0 + 3}{language.operators["[]"][0][1]}',
+                      'value': f'p0-{language.slice_mat("T", 0, 2, 3, None)}',
                       'type': 'mat'})
 
         varss.append({'name': 'Z',
-                      'value': f'T{language.operators["[]"][0][0]}{language.indexing_0}:' + \
-                               f'{language.indexing_0 + 2 + language.subscription},' + \
-                               f'{language.indexing_0 + 2}{language.operators["[]"][0][1]}',
+                      'value': language.slice_mat("T", 0, 2, 2, None),
                       'type': 'mat'})
 
         # Compute Jacobian column 1:3
-        varss.append({'name': f'Jac{language.operators["[]"][0][0]}{language.indexing_0}:' + \
-                              f'{language.indexing_0 + 2 + language.subscription},' + \
-                              f'{language.indexing_0}{language.operators["[]"][0][1]}',
+        varss.append({'name': language.slice_mat("Jac", 0, 2, 0, None),
                       'value': 'cross(Z,L)',
                       'type': ''})
 
         # Compute Jacobian column 4:6
-        varss.append({'name': f'Jac{language.operators["[]"][0][0]}{language.indexing_0 + 3}:' + \
-                              f'{language.indexing_0 + 5 + language.subscription}' + \
-                              f',{language.indexing_0}{language.operators["[]"][0][1]}',
+        varss.append({'name': language.slice_mat("Jac", 3, 5, 0, None),
                       'value': 'Z',
                       'type': ''})
 
@@ -714,34 +762,27 @@ def generate_jacobian(robot, origin, destination, content,
 
             # Compute L
             varss.append({'name': 'L',
-                          'value': f'p0-T{language.operators["[]"][0][0]}{language.indexing_0}:' + \
-                                   f'{language.indexing_0 + 2 + language.subscription}' + \
-                                   f',{language.indexing_0 + 3}{language.operators["[]"][0][1]}',
+                          'value':
+                              f"p0-{language.slice_mat('T', 0, 2, 3, None)}",
                           'type': ''})
             # Compute Z
             varss.append({'name': 'Z',
-                          'value': f'T{language.operators["[]"][0][0]}{language.indexing_0}:' + \
-                                   f'{language.indexing_0 + 2 + language.subscription}' + \
-                                   f',{language.indexing_0 + 2}{language.operators["[]"][0][1]}',
+                          'value': language.slice_mat("T", 0, 2, 2, None),
                           'type': ''})
 
             # Compute Jacobian column 1:3
-            varss.append({'name': f'Jac{language.operators["[]"][0][0]}{language.indexing_0}:' + \
-                                  f'{language.indexing_0 + 2 + language.subscription}' + \
-                                  f',{language.indexing_0 + i}{language.operators["[]"][0][1]}',
+            varss.append({'name': language.slice_mat("Jac", 0, 2, i, None),
                           'value': 'cross(Z,L)',
                           'type': ''})
 
             # Compute Jacobian column 4:6
-            varss.append({'name': f'Jac{language.operators["[]"][0][0]}{language.indexing_0 + 3}:' + \
-                                  f'{language.indexing_0 + 5 + language.subscription}' + \
-                                  f',{language.indexing_0 + i}{language.operators["[]"][0][1]}',
+            varss.append({'name': language.slice_mat("Jac", 3, 5, i, None),
                           'value': 'Z',
                           'type': ''})
 
     else:
         jac, all_sym = robot\
-            .jacobian(origin, destination,
+            .jacobian(origin, destination, content,
                       optimization_level=optimization_level)
 
         params += get_parameters(all_sym)
@@ -795,13 +836,15 @@ def generate_jacobian(robot, origin, destination, content,
         docstr += f'\n    - Column {language.indexing_0 + i_p} : ' + \
                   f'{param["name"]}'
 
-    fname = 'jacobian_' + origin_name + '_to_' + dest_name
+    fname = 'jacobian_' + origin_name + '_to_' + dest_name + "_" + content
 
     if optimization_level == 0:
         for i_v, var in enumerate(varss):
             for i_p, param in enumerate(params):
-                varss[i_v]['value'] = replace_var(var['value'], param['name'],
-                                                  f'q[{i_p + language.indexing_0}]')
+                varss[i_v]['value'] = \
+                    replace_var(var['value'], param['name'],
+                                language.slice_mat("q", i_p, None, None,
+                                                   None))
         code += language.generate_fct(fname, parameters, expr, varss, docstr,
                                       matrix_dims=(1, 1))
     else:
@@ -815,7 +858,9 @@ def generate_jacobian(robot, origin, destination, content,
 
 def generate_all_jac(robot, list_origin, list_dest, list_content,
                      optimization_level,
-                     language=Language('python')):
+                     language=Language('python'),
+                     progressbar=None,
+                     progress_increment=0):
     """
     Description
     -----------
@@ -861,6 +906,15 @@ def generate_all_jac(robot, list_origin, list_dest, list_content,
     language : Language.Language, optional
         Language you want the code to be generated to
         Default is Language('python')
+
+    progressbar : PyQt5.QtWidgets.QProgressBar or None, optional
+        default is None
+        Progressbar to update during the robot creation (used in GUI)
+        If it is None, no progressbar is updated
+
+    progress_increment : float
+        Progressbar  increment.  Default  is  0.  If progressbar is None, this
+        parameter is ignored.
         
     Returns
     -------
@@ -878,6 +932,8 @@ def generate_all_jac(robot, list_origin, list_dest, list_content,
     code += '\n\n'
 
     for i, origin, in enumerate(list_origin):
+
+        print(f"Generating Jacobian {i+1}/{len(list_origin)}")
         code += generate_jacobian(robot, origin, list_dest[i],
                                   list_content[i],
                                   optimization_level=optimization_level,
@@ -885,12 +941,15 @@ def generate_all_jac(robot, list_origin, list_dest, list_content,
         if i < len(list_origin) - 1:
             code += '\n\n'
 
+        increment_progressbar(progressbar, progress_increment)
+
     return code
 
 
 # Generate Center of Mass Position ___________________________________________
 
-def generate_com(robot, optimization_level, language=Language('python')):
+def generate_com(robot, optimization_level, language=Language('python'),
+                 progressbar=None, progress_increment=0):
     """
     Generate the code for the center of mass of the robot
 
@@ -909,12 +968,24 @@ def generate_com(robot, optimization_level, language=Language('python')):
         Language you want the code to be generated to
         Default is Language('python')
 
+    progressbar : PyQt5.QtWidgets.QProgressBar or None, optional
+        default is None
+        Progressbar to update during the robot creation (used in GUI)
+        If it is None, no progressbar is updated
+
+    progress_increment : float
+        Progressbar  increment.  Default  is  0.  If progressbar is None, this
+        parameter is ignored.
+
+
     Returns
     -------
     str : 
         Code of the CoM function in the desired language
 
     """
+
+    print(f"Generating Center of Mass")
 
     # Adding Title
     code = language.title("Center of Mass of the Robot", 0)
@@ -1052,8 +1123,10 @@ def generate_com(robot, optimization_level, language=Language('python')):
     for i_v, var in enumerate(varss):
         for i_p, param in enumerate(params):
             if not varss[i_v]['value'][0] == '#':
-                varss[i_v]['value'] = replace_var(var['value'], param['name'],
-                                                  f'q[{i_p + language.indexing_0}]')
+                varss[i_v]['value'] = \
+                    replace_var(var['value'], param['name'],
+                                language.slice_mat("q", i_p, None, None,
+                                                   None))
 
     if optimization_level == 0:
         dimensions = (f'(4 x 1) {language.matrix_type} in homogeneous '
@@ -1073,13 +1146,17 @@ def generate_com(robot, optimization_level, language=Language('python')):
     else:
         code += generate_code_from_sym_mat(com, 'com', language, docstr,
                                            input_is_vector=True)
+
+    increment_progressbar(progressbar, progress_increment)
     return code
 
 
 # Generate Center of Mass Jacobian ___________________________________________
 
 def generate_com_jacobian(robot, optimization_level,
-                          language=Language('python')):
+                          language=Language('python'),
+                          progressbar=None,
+                          progress_increment=0):
     """
     Generate the code for the jacobian of the center of mass of the robot
 
@@ -1099,12 +1176,24 @@ def generate_com_jacobian(robot, optimization_level,
         Language you want the code to be generated to
         Default is Language('python')
 
+    progressbar : PyQt5.QtWidgets.QProgressBar or None, optional
+        default is None
+        Progressbar to update during the robot creation (used in GUI)
+        If it is None, no progressbar is updated
+
+    progress_increment : float
+        Progressbar  increment.  Default  is  0.  If progressbar is None, this
+        parameter is ignored.
+
+
     Returns
     -------
     str : 
         Code of the CoM Jacobian function in the desired language
 
     """
+
+    print(f"Generating Center of Mass Jacobian")
 
     # Adding Title
     code = language.title("Jacobian of the Center of Mass of the Robot", 0)
@@ -1126,7 +1215,7 @@ def generate_com_jacobian(robot, optimization_level,
             return language.comment_line + ' Center of mass jacobian function ' + \
                    'can not be generated because the robot mass is null.'
 
-        # Tree iteration .........................................................
+        # Tree iteration .....................................................
 
         varss = []
 
@@ -1147,7 +1236,7 @@ def generate_com_jacobian(robot, optimization_level,
         expr = 'Jac'
         l_declared = False
         z_declared = False
-        i_jac = language.indexing_0
+        i_jac = 0
         last_u = 0
 
         for node in PreOrderIter(robot.tree.node):
@@ -1171,25 +1260,20 @@ def generate_com_jacobian(robot, optimization_level,
                        'type': 'vect'}
                 varss.append(var)
                 l_type = '' if l_declared else 'vect'
+                com_val = (f"{language.slice_mat('com0', 0, 2, None, None)}"
+                           f"-{language.slice_mat('com', 0, 2, None, None)}")
                 var_l = {'name': 'L',
-                         'value': f'com0{language.operators["[]"][0][0]}{language.indexing_0}:' + \
-                                  f'{language.indexing_0 + 2 + language.subscription}' + \
-                                  f']-com[{language.indexing_0}:' + \
-                                  f'{language.indexing_0 + 2 + language.subscription}{language.operators["[]"][0][1]}',
+                         'value': com_val,
                          'type': l_type}
                 l_declared = True
                 varss.append(var_l)
                 z_type = '' if z_declared else 'vect'
                 var_z = {'name': 'Z',
-                         'value': f'T{language.operators["[]"][0][0]}{language.indexing_0}:' + \
-                                  f'{language.indexing_0 + 2 + language.subscription},' + \
-                                  f'{language.indexing_0 + 2}{language.operators["[]"][0][1]}',
+                         'value': language.slice_mat("T", 0, 2, 2, None),
                          'type': z_type}
                 z_declared = True
                 varss.append(var_z)
-                var_j = {'name': f'Jac{language.operators["[]"][0][0]}{language.indexing_0}:' + \
-                                 f'{language.indexing_0 + 2 + language.subscription}' + \
-                                 f',{i_jac}{language.operators["[]"][0][1]}',
+                var_j = {'name':language.slice_mat("Jac", 0, 2, i_jac, None),
                          'value': 'cross(Z,L)',
                          'type': ''}
                 varss.append(var_j)
@@ -1276,7 +1360,9 @@ def generate_com_jacobian(robot, optimization_level,
     for i_v, var in enumerate(varss):
         for i_p, param in enumerate(params):
             varss[i_v]['value'] = replace_var(var['value'], param['name'],
-                                              f'q[{i_p + language.indexing_0}]')
+                                              language.slice_mat("q", i_p,
+                                                                 None, None,
+                                                                 None))
     paar = [paramq]
     if optimization_level == 0:
         param_com0 = {'name': 'com0',
@@ -1321,6 +1407,8 @@ def generate_com_jacobian(robot, optimization_level,
     else:
         code += generate_code_from_sym_mat(jac, 'jacobian_com', language,
                                            docstr, input_is_vector=True)
+
+    increment_progressbar(progressbar, progress_increment)
     return code
 
 
@@ -1487,7 +1575,9 @@ def generate_polynomial_trajectory(conditions, function_name, language):
 
 # Generate all the polynomial trajectories ___________________________________
 
-def generate_all_polynomial_trajectories(trajectories, language):
+def generate_all_polynomial_trajectories(trajectories, language,
+                                         progressbar=None,
+                                         progress_increment=0):
     """
     Description
     -----------
@@ -1524,6 +1614,16 @@ def generate_all_polynomial_trajectories(trajectories, language):
     language : Language.Language
         Language of the generated code
 
+    progressbar : PyQt5.QtWidgets.QProgressBar or None, optional
+        default is None
+        Progressbar to update during the robot creation (used in GUI)
+        If it is None, no progressbar is updated
+
+    progress_increment : float
+        Progressbar  increment.  Default  is  0.  If progressbar is None, this
+        parameter is ignored.
+
+
     Returns
     -------
 
@@ -1548,6 +1648,7 @@ def generate_all_polynomial_trajectories(trajectories, language):
         code += generate_polynomial_trajectory(trajectory["conditions"],
                                                trajectory["name"],
                                                language)
+        increment_progressbar(progressbar, progress_increment)
 
     return code
 
@@ -1556,7 +1657,7 @@ def generate_all_polynomial_trajectories(trajectories, language):
 
 def generate_everything(robot, list_ftm, list_btm, list_fk, list_jac, com,
                         com_jac, polynomial_trajectories, optimization_level,
-                        language, filename):
+                        language, filename, progressbar=None):
     """
     Description
     -----------
@@ -1667,11 +1768,22 @@ def generate_everything(robot, list_ftm, list_btm, list_fk, list_jac, com,
         Name  of  the  output  file  containing  the  generated  code (without
         extension)
 
+    progressbar : PyQt5.QtWidgets.QProgressBar or None, optional
+        default is None
+        Progressbar to update during the robot creation (used in GUI)
+        If it is None, no progressbar is updated
+
     Returns
     -------
     None.
 
     """
+
+    # NUmber of functions to generate
+    total_fcts = len(list_ftm + list_btm + list_fk + list_jac +
+                     polynomial_trajectories) + com + com_jac
+    progress_0 = 0
+    progress_increment = 100/total_fcts
 
     # Opening the file in write mode
 
@@ -1694,7 +1806,9 @@ def generate_everything(robot, list_ftm, list_btm, list_fk, list_jac, com,
             code += f"\nclassdef {filename.split('/')[-1]}\nmethods(Static)\n"
             code += "\n"
 
-        code += generate_all_matrices(robot, list_ftm, list_btm, language)
+        code += generate_all_matrices(robot, list_ftm, list_btm, language,
+                                      progressbar=progressbar,
+                                      progress_increment=progress_increment)
 
         if list_fk:
             code += '\n\n'
@@ -1710,7 +1824,9 @@ def generate_everything(robot, list_ftm, list_btm, list_fk, list_jac, com,
             code += generate_all_fk(robot, list_origin, list_dest,
                                     list_content,
                                     optimization_level,
-                                    language)
+                                    language,
+                                    progressbar=progressbar,
+                                    progress_increment=progress_increment)
 
         if list_jac:
             code += '\n\n'
@@ -1718,27 +1834,37 @@ def generate_everything(robot, list_ftm, list_btm, list_fk, list_jac, com,
             list_dest = []
             list_content = []
 
-            for fk in list_jac:
-                list_origin.append(fk[0])
-                list_dest.append(fk[1])
-                list_content = (fk[2])
+            for jac in list_jac:
+                list_origin.append(jac[0])
+                list_dest.append(jac[1])
+                list_content.append(jac[2])
 
             code += generate_all_jac(robot, list_origin, list_dest,
                                      list_content, optimization_level,
-                                     language)
+                                     language,
+                                     progressbar=progressbar,
+                                     progress_increment=progress_increment)
 
         if com:
             code += '\n\n'
-            code += generate_com(robot, optimization_level, language)
+            code += generate_com(robot, optimization_level, language,
+                                 progressbar=progressbar,
+                                 progress_increment=progress_increment
+                                 )
 
         if com_jac:
             code += '\n\n'
-            code += generate_com_jacobian(robot, optimization_level, language)
+            code += generate_com_jacobian(
+                robot, optimization_level, language,
+                progressbar=progressbar,
+                progress_increment=progress_increment)
 
         if polynomial_trajectories:
-            code += \
-                generate_all_polynomial_trajectories(polynomial_trajectories,
-                                                     language)
+            code += generate_all_polynomial_trajectories(
+                    polynomial_trajectories,
+                    language,
+                    progressbar=progressbar,
+                    progress_increment=progress_increment)
 
         code += '\n'
 
@@ -1751,6 +1877,8 @@ def generate_everything(robot, list_ftm, list_btm, list_fk, list_jac, com,
 
         f.write(code)
         f.close()
+
+        print("Done")
 
 
 if __name__ == '__main__':

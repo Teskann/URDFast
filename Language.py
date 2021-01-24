@@ -916,6 +916,42 @@ class Language:
         elif self.name == "matlab":
             return f"for i={i0+1}:{ilt}"
 
+    # Slice __________________________________________________________________
+
+    def slice_mat(self, mat, x0, xf, y0, yf):
+        """
+        Get the slice of a matrix : A[x0:xf, y0:yf]
+
+        Parameters
+        ----------
+        mat : str
+            Matrix you want to slice
+        x0 : int or None
+            Starting row of the matrix slice. Can be None
+        xf : int or None or str
+            Ending row of the matrix. Can be None or "end"
+        y0 : int or None
+            Starting column of the matrix. Can be None.
+        yf : int or None or str
+            Ending column of the matrix. Can be None or "end"
+
+        Returns
+        -------
+
+        str : Expression of the sliced matrix in the language
+
+        """
+
+        if self.name in ["python", "julia", "matlab"]:
+            xxf = "" if xf is None \
+                else f":{self.indexing_0 + xf + self.subscription}"
+            yy = "" if y0 is None else f",{y0 + self.indexing_0}"
+            yyf = "" if yf is None or y0 is None \
+                else f":{self.indexing_0 + yf + self.subscription}"
+            return (f"{mat}{self.operators['[]'][0][0]}{self.indexing_0 + x0}"
+                    f"{xxf}{yy}{yyf}"
+                    f'{self.operators["[]"][0][1]}')
+
 
 if __name__ == '__main__':
     func_str = '1+(cos(a-b)-sin(a-b))/(cos(a-b)-sin(a-b))-((cos(a-b)-sin(a-b))/(cos(a-b)-sin(a-b)))'
