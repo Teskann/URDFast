@@ -40,7 +40,7 @@ robot_obj = 0  # Robot Object
 
 settings = {"language": "Julia",
             "filename": "out",
-            "optimization_level": 0}
+            "optimization_level": 2}
 
 path = './GUI/'
 
@@ -1401,6 +1401,42 @@ def update_settings(gui):
     settings["optimization_level"] = gui.comboBox_optimization_level\
         .currentIndex()
 
+    if settings["optimization_level"] <= 0:
+        gui.checkBox_fk_x.setChecked(True)
+        gui.checkBox_fk_y.setChecked(True)
+        gui.checkBox_fk_z.setChecked(True)
+        gui.checkBox_fk_orientation.setChecked(True)
+        gui.checkBox_jac_x.setChecked(True)
+        gui.checkBox_jac_y.setChecked(True)
+        gui.checkBox_jac_z.setChecked(True)
+        gui.checkBox_jac_wx.setChecked(True)
+        gui.checkBox_jac_wy.setChecked(True)
+        gui.checkBox_jac_wz.setChecked(True)
+        gui.checkBox_com_x.setChecked(True)
+        gui.checkBox_com_y.setChecked(True)
+        gui.checkBox_com_z.setChecked(True)
+        gui.checkBox_com_jac_x.setChecked(True)
+        gui.checkBox_com_jac_y.setChecked(True)
+        gui.checkBox_com_jac_z.setChecked(True)
+
+    gui.checkBox_fk_x.setEnabled(settings["optimization_level"] > 0)
+    gui.checkBox_fk_y.setEnabled(settings["optimization_level"] > 0)
+    gui.checkBox_fk_z.setEnabled(settings["optimization_level"] > 0)
+    gui.checkBox_fk_orientation\
+        .setEnabled(settings["optimization_level"] > 0)
+    gui.checkBox_jac_x.setEnabled(settings["optimization_level"] > 0)
+    gui.checkBox_jac_y.setEnabled(settings["optimization_level"] > 0)
+    gui.checkBox_jac_z.setEnabled(settings["optimization_level"] > 0)
+    gui.checkBox_jac_wx.setEnabled(settings["optimization_level"] > 0)
+    gui.checkBox_jac_wy.setEnabled(settings["optimization_level"] > 0)
+    gui.checkBox_jac_wz.setEnabled(settings["optimization_level"] > 0)
+    gui.checkBox_com_x.setEnabled(settings["optimization_level"] > 0)
+    gui.checkBox_com_y.setEnabled(settings["optimization_level"] > 0)
+    gui.checkBox_com_z.setEnabled(settings["optimization_level"] > 0)
+    gui.checkBox_com_jac_x.setEnabled(settings["optimization_level"] > 0)
+    gui.checkBox_com_jac_y.setEnabled(settings["optimization_level"] > 0)
+    gui.checkBox_com_jac_z.setEnabled(settings["optimization_level"] > 0)
+
 
 def generate(gui):
     """
@@ -1465,7 +1501,8 @@ def generate(gui):
                         polynomial_trajectories,
                         optimization_level,
                         language,
-                        path + '../generated/' + settings["filename"])
+                        path + '../generated/' + settings["filename"],
+                        progressbar=gui.progressBar)
 
 
 # UI Main ____________________________________________________________________
@@ -1620,6 +1657,7 @@ def main():
 
     ui.pushButton_generate.clicked.connect(lambda: generate(ui))
     ui.pushButton_generate.setEnabled(False)
+    ui.comboBox_optimization_level.setCurrentIndex(2)
 
     # setup stylesheet
     file = open(path + "dark.qss")

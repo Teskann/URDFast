@@ -627,6 +627,7 @@ class Ui_MainWindow(object):
         self.comboBox_language.setItemText(2, _translate("MainWindow", "MATLAB"))
         self.label_fname.setText(_translate("MainWindow", "Output File Name :"))
         self.label.setText(_translate("MainWindow", "Optimization level :"))
+        self.comboBox_optimization_level.setCurrentText(_translate("MainWindow", "2 (Analytic functions, factorized, RECOMMENDED)"))
         self.comboBox_optimization_level.setItemText(0, _translate("MainWindow", "0 (fastest to generate, numeric functions)"))
         self.comboBox_optimization_level.setItemText(1, _translate("MainWindow", "1 (Analytic functions, no simplification)"))
         self.comboBox_optimization_level.setItemText(2, _translate("MainWindow", "2 (Analytic functions, factorized, RECOMMENDED)"))

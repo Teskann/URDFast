@@ -312,6 +312,9 @@
            </item>
            <item row="2" column="1" colspan="2">
             <widget class="QComboBox" name="comboBox_optimization_level">
+             <property name="currentText">
+              <string>2 (Analytic functions, factorized, RECOMMENDED)</string>
+             </property>
              <item>
               <property name="text">
                <string>0 (fastest to generate, numeric functions)</string>

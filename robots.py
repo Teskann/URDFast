@@ -247,7 +247,8 @@ class Robot:
 
     # Get transition matrices between 2 Joints / Links _______________________
 
-    def forward_kinematics(self, origin, destination, optimization_level=0):
+    def forward_kinematics(self, origin, destination, content="xyzo",
+                           optimization_level=0):
         """
         Description
         -----------
@@ -278,6 +279,9 @@ class Robot:
                 
                 Example : destination='link_0'
 
+        content : str
+            Content of the FK ("xyz", "xyzo", "o", ...)
+
         optimization_level : int
             Optimization level of the generated code.
             - 0 : Numeric  computation  of  FK  using  the transition matrices
@@ -302,49 +306,73 @@ class Robot:
 
         # 0 - Check if it has already been computed ..........................
 
-        if origin in self.saved_fk.keys():
-            if destination in self.saved_fk[origin].keys():
-                if self.saved_fk[origin][destination][1] >= \
+        if origin in self.saved_fk.keys()\
+            and destination in self.saved_fk[origin].keys()\
+                and self.saved_fk[origin][destination][1] >= \
                         optimization_level:
-                    return self.saved_fk[origin][destination][0]
+                    T = self.saved_fk[origin][destination][0]
 
-        # 1 - Getting the path in the tree ...................................
+        else:
+            # 1 - Getting the path in the tree ...............................
 
-        upwards, downwards = self.branch(origin, destination)
+            upwards, downwards = self.branch(origin, destination)
 
-        # 2 - Getting the matrix .............................................
+            # 2 - Getting the matrix .........................................
 
-        # Initialisation
-        T = Matrix([[1, 0, 0, 0],
-                    [0, 1, 0, 0],
-                    [0, 0, 1, 0],
-                    [0, 0, 0, 1]])
+            # Initialisation
+            T = Matrix([[1, 0, 0, 0],
+                        [0, 1, 0, 0],
+                        [0, 0, 1, 0],
+                        [0, 0, 0, 1]])
 
-        # First upwards joints
-        for up_joint_nb in upwards:
-            T *= self.joints[up_joint_nb].Tinv
+            # First upwards joints
+            for up_joint_nb in upwards:
+                T *= self.joints[up_joint_nb].Tinv
 
-        # Then downwards joints
-        for down_joint_nb in downwards:
-            T *= self.joints[down_joint_nb].T
+            # Then downwards joints
+            for down_joint_nb in downwards:
+                T *= self.joints[down_joint_nb].T
 
-        if optimization_level == 1:
-            return T.evalf().nsimplify(tolerance=1e-10).evalf()
+            if optimization_level == 1:
+                T = T.evalf().nsimplify(tolerance=1e-10).evalf()
 
-        T = T.factor().evalf().nsimplify(tolerance=1e-10).evalf()
-        if optimization_level == 3:
-            T = T.simplify().nsimplify(tolerance=1e-10).evalf()
+            else:
+                T = T.factor().evalf().nsimplify(tolerance=1e-10).evalf()
+            if optimization_level == 3:
+                T = T.simplify().nsimplify(tolerance=1e-10).evalf()
 
-        # Save the FK
-        if origin not in self.saved_fk.keys():
-            self.saved_fk[origin] = {}
-        self.saved_fk[origin][destination] = [T, optimization_level]
+            # Save the FK
+            if origin not in self.saved_fk.keys():
+                self.saved_fk[origin] = {}
+            self.saved_fk[origin][destination] = [T, optimization_level]
 
-        return T
+        # Select content .....................................................
+
+        if content == "xyzo":
+            return T
+        elif content == "o":
+            return T[0:3, 0:3]
+        elif content == "xyz":
+            return T[0:3, 3]
+        elif content == "xy":
+            return T[0:2, 3]
+        elif content == "yz":
+            return T[1:3, 3]
+        elif content == "xz":
+            return Matrix(2, 1, [T[0, 3], T[2, 3]])
+        elif content == "x":
+            return T[0:1, 3]
+        elif content == "y":
+            return T[1:2, 3]
+        elif content == "z":
+            return T[2:3, 3]
+        else:
+            raise ValueError("FK content is not valid.")
 
     # Geometric Jacobian _____________________________________________________
 
-    def jacobian(self, origin, destination, optimization_level):
+    def jacobian(self, origin, destination, content="xyzrpY",
+                 optimization_level=1):
         """
         Description
         -----------
@@ -400,6 +428,10 @@ class Robot:
                 considered Joint / Link in self.joints / self.links.
                 
                 Example : destination='link_0'
+
+        content : str
+            Content of the Jacobian ("xyzrpY", ...)
+
         optimization_level : int
             0 or 1 => The Jacobian is not simplified at all
             2 => The Jacobian is factored
@@ -418,45 +450,56 @@ class Robot:
 
         # 0 - Check if it has already been computed ..........................
 
-        if origin in self.saved_jac.keys():
-            if destination in self.saved_jac[origin].keys():
-                if self.saved_jac[origin][destination][1] >= \
+        if origin in self.saved_jac.keys()\
+            and destination in self.saved_jac[origin].keys()\
+                and self.saved_jac[origin][destination][1] >= \
                         optimization_level:
-                    return self.saved_jac[origin][destination][0]
+                    JJ, list_symbols = self.saved_jac[origin][destination][0]
 
-        fk = self.forward_kinematics(origin, destination)
+        else:
 
-        # Getting all the symbols (DOFs)
-        list_symbols = list(fk.free_symbols)
+            fk = self.forward_kinematics(origin, destination)
 
-        # Sort by name ascending
-        list_symbols.sort(key=lambda sym: sym.name)
+            # Getting all the symbols (DOFs)
+            list_symbols = list(fk.free_symbols)
 
-        Jx = fk[0:3, 3].jacobian(list_symbols)
-        Jo = zeros(*Jx.shape)
-        upwards, downwards = self.branch(origin, destination)
+            # Sort by name ascending
+            list_symbols.sort(key=lambda sym: sym.name)
 
-        for i, j_nb in enumerate(upwards + downwards):
-            if self.joints[j_nb].joint_type.lower() in ["continuous",
-                                                        "revolute"]:
-                Jo[0:3, i] = self\
-                    .forward_kinematics(origin, f"joint_{j_nb}",
-                                        optimization_level=1)[0:3, 2]
+            Jx = fk[0:3, 3].jacobian(list_symbols)
+            Jo = zeros(*Jx.shape)
+            upwards, downwards = self.branch(origin, destination)
 
-        JJ = Matrix([[Jx], [Jo]])
+            for i, j_nb in enumerate(upwards + downwards):
+                if self.joints[j_nb].joint_type.lower() in ["continuous",
+                                                            "revolute"]:
+                    Jo[0:3, i] = self\
+                        .forward_kinematics(origin, f"joint_{j_nb}",
+                                            optimization_level=1)[0:3, 2]
 
-        if optimization_level > 1:
-            JJ = factor(JJ).evalf().nsimplify(tolerance=1e-10).evalf()
-        if optimization_level > 2:
-            JJ = JJ.simplify().nsimplify(tolerance=1e-10).evalf()
+            JJ = Matrix([[Jx], [Jo]])
 
-        # Save the Jac
-        if origin not in self.saved_jac.keys():
-            self.saved_jac[origin] = {}
-        self.saved_jac[origin][destination] = [(JJ, list_symbols),
-                                               optimization_level]
+            if optimization_level > 1:
+                JJ = factor(JJ).evalf().nsimplify(tolerance=1e-10).evalf()
+            if optimization_level > 2:
+                JJ = JJ.simplify().nsimplify(tolerance=1e-10).evalf()
 
-        return JJ, list_symbols
+            # Save the Jac
+            if origin not in self.saved_jac.keys():
+                self.saved_jac[origin] = {}
+            self.saved_jac[origin][destination] = [(JJ, list_symbols),
+                                                   optimization_level]
+
+        all_lines = "xyzrpY"
+        to_del = []
+        Jret = JJ.copy()
+        for i, line in enumerate(all_lines):
+            if line not in content:
+                to_del.append(i)
+        for ddel in to_del[::-1]:
+            Jret = Jret.row_del(ddel)
+
+        return Jret, list_symbols
 
     # Center of mass _________________________________________________________
 
