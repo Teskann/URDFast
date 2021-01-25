@@ -5,7 +5,7 @@ Robot Objects
 
 from anytree import Node, RenderTree, Walker
 from URDF import URDF
-from sympy import Matrix, zeros, factor, ones, eye
+from sympy import Matrix, zeros, factor, ones, eye, nsimplify
 from joints import JointURDF, JointDH
 from links import LinkURDF, LinkDH
 from dh_params import dh
@@ -65,6 +65,9 @@ class Robot:
     saved_com_jac : sympy.matrices.dense.MutableDenseMatrix or None
         Variable saving the jacobian of the center of mass of the robot.
 
+    dof : list of sympy.core.symbol.Symbol
+        List of all the degrees of freedom of the robot (alphabetical order)
+
     """
 
     # Data ===================================================================
@@ -97,6 +100,24 @@ class Robot:
     mass = 0
 
     # Methods ================================================================
+
+    # Constructor ____________________________________________________________
+
+    def __init__(self):
+        """
+        Constructor to call from children classes at the end of the creation
+        """
+
+        self.saved_fk = {}
+        self.saved_jac = {}
+        self.saved_com = None
+        self.saved_com_jac = None
+
+        self.dof = []
+        for joint in self.joints:
+            self.dof += list(joint.T.free_symbols)
+
+        self.dof.sort(key=lambda x: x.name)
 
     # Number of Links ________________________________________________________
 
@@ -334,12 +355,12 @@ class Robot:
                 T *= self.joints[down_joint_nb].T
 
             if optimization_level == 1:
-                T = T.evalf().nsimplify(tolerance=1e-10).evalf()
+                T = nsimplify(T.evalf(), tolerance=1e-10).evalf()
 
             else:
-                T = T.factor().evalf().nsimplify(tolerance=1e-10).evalf()
+                T = nsimplify(T.factor().evalf(), tolerance=1e-10).evalf()
             if optimization_level == 3:
-                T = T.simplify().nsimplify(tolerance=1e-10).evalf()
+                T = nsimplify(T.simplify(), tolerance=1e-10).evalf()
 
             # Save the FK
             if origin not in self.saved_fk.keys():
@@ -454,19 +475,13 @@ class Robot:
             and destination in self.saved_jac[origin].keys()\
                 and self.saved_jac[origin][destination][1] >= \
                         optimization_level:
-                    JJ, list_symbols = self.saved_jac[origin][destination][0]
+                    JJ = self.saved_jac[origin][destination][0]
 
         else:
 
             fk = self.forward_kinematics(origin, destination)
 
-            # Getting all the symbols (DOFs)
-            list_symbols = list(fk.free_symbols)
-
-            # Sort by name ascending
-            list_symbols.sort(key=lambda sym: sym.name)
-
-            Jx = fk[0:3, 3].jacobian(list_symbols)
+            Jx = fk[0:3, 3].jacobian(self.dof)
             Jo = zeros(*Jx.shape)
             upwards, downwards = self.branch(origin, destination)
 
@@ -487,7 +502,7 @@ class Robot:
             # Save the Jac
             if origin not in self.saved_jac.keys():
                 self.saved_jac[origin] = {}
-            self.saved_jac[origin][destination] = [(JJ, list_symbols),
+            self.saved_jac[origin][destination] = [JJ,
                                                    optimization_level]
 
         all_lines = "xyzrpY"
@@ -497,9 +512,11 @@ class Robot:
             if line not in content:
                 to_del.append(i)
         for ddel in to_del[::-1]:
-            Jret = Jret.row_del(ddel)
+            tmp = Jret.row_del(ddel)
+            if tmp is not None:
+                Jret = tmp
 
-        return Jret, list_symbols
+        return Jret
 
     # Center of mass _________________________________________________________
 
@@ -616,13 +633,7 @@ class Robot:
 
         com_expr = self.com(optimization_level)
 
-        # Getting all the symbols (DOFs)
-        list_symbols = list(com_expr.free_symbols)
-
-        # Sort by name ascending
-        list_symbols.sort(key=lambda sym: sym.name)
-
-        com_jac = com_expr.jacobian(list_symbols)
+        com_jac = com_expr.jacobian(self.dof)
 
         if optimization_level > 1:
             com_jac = factor(com_jac).evalf().nsimplify(tolerance=1e-10) \
@@ -799,10 +810,7 @@ class RobotURDF(Robot):
         for link in self.links:
             self.mass += link.mass
 
-        self.saved_fk = {}
-        self.saved_jac = {}
-        self.saved_com = None
-        self.saved_com_jac = None
+        super().__init__()
 
 
 # ----------------------------------------------------------------------------
@@ -876,11 +884,7 @@ class RobotDH(Robot):
         for link in self.links:
             self.mass += link.mass
 
-        self.saved_fk = {}
-        self.saved_jac = {}
-        self.saved_com = None
-        self.saved_com_jac = None
-
+        super().__init__()
 
 # ----------------------------------------------------------------------------
 # | MAIN - RUNNING TESTS                                                     |

@@ -113,7 +113,8 @@ def get_parameters(syms):
 def generate_code_from_sym_mat(sympy_matrix, fname,
                                language=Language('python'),
                                docstr=None,
-                               input_is_vector=False):
+                               input_is_vector=False,
+                               dof=None):
     """
     Description
     -----------
@@ -148,6 +149,10 @@ def generate_code_from_sym_mat(sympy_matrix, fname,
         be passed as a vector instead of many variables.
 
         Default is False.
+
+    dof : list of sympy.core.symbol.Symbol or None
+        List  of  all the degrees of freedom of the robot. Must not be None if
+        inut_input_is_vector is not True
         
     Returns
     -------
@@ -179,7 +184,8 @@ def generate_code_from_sym_mat(sympy_matrix, fname,
     r = language.generate_fct(fname, params, code_mat, varss=varss,
                               docstr=docstr,
                               input_is_vector=input_is_vector,
-                              matrix_dims=(len(code_mat), len(code_mat[0])))
+                              matrix_dims=(len(code_mat), len(code_mat[0])),
+                              dof=dof)
 
     return r
 
@@ -405,10 +411,18 @@ def generate_fk(robot, origin, destination, content, optimization_level,
     dest_name = robot.joints[index_dest].name if type_dest == 'joint' \
         else robot.links[index_dest].name
 
+    if "o" not in content:
+        dim_ret = (f"({len(content)} x 1) {language.matrix_type}, giving the"
+                   " position")
+    elif content == "o":
+        dim_ret = (f"(3 x 3) {language.matrix_type} (rotation matrix), "
+                   f"giving the orientation")
+    else:
+        dim_ret = (f"(4 x 4) {language.matrix_type} in homogeneous "
+                   f"coordinates, giving the position and the orientation")
     docstr = (f'Computes the forward kinematics from the {type_origin} '
               f"{origin_name} to the {type_dest} {dest_name}. The result is "
-              f"returned as a 4x4 {language.matrix_type} in  homogeneous "
-              "coordinates, giving the position and the orientation of "
+              f"returned as a {dim_ret} of "
               f"{dest_name} in the {origin_name} frame.")
 
     fname = 'fk_' + origin_name + '_' + dest_name + "_" + content
@@ -419,7 +433,7 @@ def generate_fk(robot, origin, destination, content, optimization_level,
         fk = robot.forward_kinematics(origin, destination, content=content,
                                       optimization_level=optimization_level)
         return generate_code_from_sym_mat(fk, fname, language, docstr,
-                                          input_is_vector=True)
+                                          input_is_vector=True, dof=robot.dof)
 
     # Not optimised version ..................................................
 
@@ -496,7 +510,8 @@ def generate_fk(robot, origin, destination, content, optimization_level,
     params.sort(key=lambda x: x['name'])
 
     code += language.generate_fct(fname, params, expr, varss, docstr,
-                                  matrix_dims=(1, 1), input_is_vector=True)
+                                  matrix_dims=(1, 1), input_is_vector=True,
+                                  dof=robot.dof)
 
     return code
 
@@ -781,11 +796,11 @@ def generate_jacobian(robot, origin, destination, content,
                           'type': ''})
 
     else:
-        jac, all_sym = robot\
+        jac = robot\
             .jacobian(origin, destination, content,
                       optimization_level=optimization_level)
 
-        params += get_parameters(all_sym)
+        params += get_parameters(robot.dof)
     expr = 'Jac'
     index_origin = int(origin.split('_')[1])
     type_origin = origin.split('_')[0]
@@ -814,42 +829,39 @@ def generate_jacobian(robot, origin, destination, content,
 
     docstr = (f'Computes the Jacobian Matrix of the {dest_name} coordinates '
               f'in the {origin_name} frame from the point p0. This matrix is '
-              f'returned as a (6 x {len(params)}) matrix where every column '
+              f'returned as a ({len(content)} x {len(robot.dof)}) '
+              f'matrix where every column '
               f'is the derivative of the position/orientation with respect to'
-              f' a degree of freedom. \n'
-              f'    - The line 1 is the derivative of X position of '
-              f'{dest_name} in the {origin_name} frame,\n'
-              f'    - The line 2 is the derivative of Y position of '
-              f'{dest_name}'
-              f' in the {origin_name} frame,\n'
-              f'    - The line 3 is the derivative of Z position of '
-              f'{dest_name}'
-              f' in the {origin_name} frame,\n'
-              '    - The line 4 is the derivative of the roll orientation of'
-              f' {dest_name} in the {origin_name} frame,\n'
-              '    - The line 5 is the derivative of the pitch orientation of'
-              f' {dest_name} in the {origin_name} frame,\n'
-              '    - The line 6 is the derivative of the yaw orientation of'
-              f' {dest_name} in the {origin_name} frame,\n'
-              'Here is the list of all the derivative variables :')
-    for i_p, param in enumerate(params):
+              f' a degree of freedom. \n')
+    for i_cc, cc in enumerate(content):
+        docstr += f'    - The line {i_cc} is the derivative of '
+        if cc in "xyz":
+            docstr += f"{cc.upper()} position "
+        else:
+            d = {"r": "roll", "p": "pitch", "Y": "yaw"}
+            docstr += f"the {d[cc]} orientation "
+        docstr += f"of {dest_name} in the {origin_name} frame,\n"
+    docstr += 'Here is the list of all the derivative variables :'
+    for i_p, param in enumerate(robot.dof):
         docstr += f'\n    - Column {language.indexing_0 + i_p} : ' + \
-                  f'{param["name"]}'
+                  f'{param.name}'
 
     fname = 'jacobian_' + origin_name + '_to_' + dest_name + "_" + content
 
     if optimization_level == 0:
         for i_v, var in enumerate(varss):
             for i_p, param in enumerate(params):
-                varss[i_v]['value'] = \
-                    replace_var(var['value'], param['name'],
-                                language.slice_mat("q", i_p, None, None,
-                                                   None))
+                qp = language.\
+                    slice_mat("q", robot.dof.index(Symbol(param['name'])),
+                              None, None, None)
+                varss[i_v]['value'] = replace_var(var['value'],
+                                                  param['name'], qp)
         code += language.generate_fct(fname, parameters, expr, varss, docstr,
                                       matrix_dims=(1, 1))
     else:
         code += generate_code_from_sym_mat(jac, fname, language, docstr,
-                                           input_is_vector=True)
+                                           input_is_vector=True,
+                                           dof=robot.dof)
 
     return code
 
@@ -1104,9 +1116,7 @@ def generate_com(robot, optimization_level, language=Language('python'),
     else:
         com = robot.com(optimization_level)
 
-        all_sym = list(com.free_symbols)
-
-        all_sym.sort(key=lambda sym: sym.name)
+        all_sym = robot.dof
 
         params += get_parameters(all_sym)
 
@@ -1114,7 +1124,9 @@ def generate_com(robot, optimization_level, language=Language('python'),
               'freedom of the robot that have an effect on the center of mass'
               ' position. This vector contains:')
     for i_p, param in enumerate(params):
-        descrq += f'\n        - q[{i_p + language.indexing_0}] = ' + \
+        qp = language.slice_mat("q", robot.dof.index(Symbol(param['name'])),
+                                None, None, None)
+        descrq += f'\n        - {qp} = ' + \
                   param['name']
         descrq += f' :\n              ' + param['description']
 
@@ -1145,7 +1157,8 @@ def generate_com(robot, optimization_level, language=Language('python'),
                                       docstr, matrix_dims=(1, 1))
     else:
         code += generate_code_from_sym_mat(com, 'com', language, docstr,
-                                           input_is_vector=True)
+                                           input_is_vector=True,
+                                           dof=robot.dof)
 
     increment_progressbar(progressbar, progress_increment)
     return code
@@ -1156,7 +1169,8 @@ def generate_com(robot, optimization_level, language=Language('python'),
 def generate_com_jacobian(robot, optimization_level,
                           language=Language('python'),
                           progressbar=None,
-                          progress_increment=0):
+                          progress_increment=0,
+                          content="xyz"):
     """
     Generate the code for the jacobian of the center of mass of the robot
 
@@ -1184,6 +1198,9 @@ def generate_com_jacobian(robot, optimization_level,
     progress_increment : float
         Progressbar  increment.  Default  is  0.  If progressbar is None, this
         parameter is ignored.
+
+    content : str
+        Content of the center of mass of the robot ("xyz", "xy")
 
 
     Returns
@@ -1342,8 +1359,7 @@ def generate_com_jacobian(robot, optimization_level,
             varss.pop(rem)
     else:
         jac = robot.com_jacobian(optimization_level)
-        all_sym = list(jac.free_symbols)
-        all_sym.sort(key=lambda sym: sym.name)
+        all_sym = robot.dof
         params += get_parameters(all_sym)
         nb_dof = len(all_sym)
 
@@ -1351,8 +1367,9 @@ def generate_com_jacobian(robot, optimization_level,
              'an effect on the center of mass position. This vector ' \
              'contains : '
     for i_p, param in enumerate(params):
-        descrq += f'\n        - q[{i_p + language.indexing_0}] = ' + \
-                  param['name']
+        qp = language.slice_mat("q", robot.dof.index(Symbol(param['name'])),
+                                None, None, None)
+        descrq += f'\n        - {qp} = ' + param['name']
         descrq += f' :\n              ' + param['description']
 
     paramq = {'name': 'q', 'type': 'vect', 'description': descrq}
@@ -1383,30 +1400,32 @@ def generate_com_jacobian(robot, optimization_level,
     origin_name = 'world'
     dest_name = 'the center of mass'
 
-    docstr = 'Returns the Jacobian of the center of mass of the robot. ' + \
-             'This matrix is ' + \
-             f'returned as a (3 x {nb_dof}) matrix where every column is the' + \
-             ' derivative of the position of the CoM (X, Y and Z) with ' \
-             'respect' + \
-             ' to a degree ' + \
-             'of freedom. The result is expressed in the root link frame.\n' + \
-             f'    - The line 1 is the derivative of X position of {dest_name}' + \
-             f' in the {origin_name} frame,\n' + \
-             f'    - The line 2 is the derivative of Y position of {dest_name}' + \
-             f' in the {origin_name} frame,\n' + \
-             f'    - The line 3 is the derivative of Z position of {dest_name}' + \
-             f' in the {origin_name} frame\n' + \
-             'Here is the list of all the derivative variables :'
-    for i_p, param in enumerate(params):
+    docstr = (f'Computes the Jacobian Matrix of the center of mass of the '
+              f'robobt. This matrix is '
+              f'returned as a ({len(content)} x {len(robot.dof)}) '
+              f'matrix where every column '
+              f'is the derivative of the position/orientation with respect to'
+              f' a degree of freedom. \n')
+    for i_cc, cc in enumerate(content):
+        docstr += f'    - The line {i_cc} is the derivative of '
+        if cc in "xyz":
+            docstr += f"{cc.upper()} position "
+        else:
+            d = {"r": "roll", "p": "pitch", "Y": "yaw"}
+            docstr += f"the {d[cc]} orientation "
+        docstr += f"of {dest_name} in the {origin_name} frame,\n"
+    docstr += 'Here is the list of all the derivative variables :'
+    for i_p, param in enumerate(robot.dof):
         docstr += f'\n    - Column {language.indexing_0 + i_p} : ' + \
-                  f'{param["name"]}'
+                  f'{param.name}'
 
     if optimization_level == 0:
         code += language.generate_fct('jacobian_com', paar, expr, varss,
                                       docstr, matrix_dims=(1, 1))
     else:
         code += generate_code_from_sym_mat(jac, 'jacobian_com', language,
-                                           docstr, input_is_vector=True)
+                                           docstr, input_is_vector=True,
+                                           dof=robot.dof)
 
     increment_progressbar(progressbar, progress_increment)
     return code

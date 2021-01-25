@@ -4,6 +4,7 @@ Created on Mon Jun 29 10:19:19 2020
 
 @author: Clément
 """
+from sympy import Symbol
 
 from code_optimization import replace, replace_var, replace_many
 import re
@@ -613,7 +614,7 @@ class Language:
     # Generate function code =================================================
 
     def generate_fct(self, fname, params, expr, varss=[], docstr=None,
-                     matrix_dims=(4, 4), input_is_vector=False):
+                     matrix_dims=(4, 4), input_is_vector=False, dof=None):
         """
         Description
         -----------
@@ -651,6 +652,10 @@ class Language:
             If  True, the parameters are converted to an unique parameter that
             is a vector
             Default is False
+
+        dof: list of sympy.core.symbol.Symbol or None
+            List  of all the degrees of freedom of the robot. Must not be None
+            if input_input_is_vector is True
         
         Returns
         -------
@@ -682,7 +687,9 @@ class Language:
 
             descrq = 'Vector of variables where :'
             for i_p, param in enumerate(params):
-                descrq += f'\n        - q[{i_p + self.indexing_0}] = ' + \
+                qp = self.slice_mat("q", dof.index(Symbol(param['name'])), None, None,
+                                    None)
+                descrq += f'\n        - {qp} = ' + \
                           param['name']
                 descrq += ' :\n              ' + param['description']
 
@@ -764,9 +771,13 @@ class Language:
 
             if input_is_vector:
                 for i_p, param in enumerate(params):
+                    qp = self.slice_mat("q", dof.index(Symbol(param['name'])),
+                                        None,
+                                        None,
+                                        None)
                     varss[i_var]['value'] = replace_var(varss[i_var]['value'],
                                                         param['name'],
-                                                        f'q[{i_p + self.indexing_0}]')
+                                                        f'{qp}')
             code += var['name'] + ' = ' + self.convert(varss[i_var]['value'])
             code += self.end_of_line + '\n' + indent(1 + loops)
 
@@ -803,8 +814,12 @@ class Language:
                     element = expr[i][j]
                     if input_is_vector:
                         for i_p, param in enumerate(params):
+                            qp = self\
+                                .slice_mat("q",
+                                            dof.index(Symbol(param['name'])),
+                                            None, None, None)
                             element = replace_var(element, param['name'],
-                                                  f'q[{i_p + self.indexing_0}]')
+                                                  f'{qp}')
                     line += self.convert(element)
                     line += self.mat_col_separator if j < matrix_dims[1] - 1 \
                         else self.mat_new_line[1]
@@ -824,8 +839,10 @@ class Language:
         else:
             if input_is_vector:
                 for i_p, param in enumerate(params):
+                    qp = self.slice_mat("q", dof.index(Symbol(param['name'])),
+                                        None, None, None)
                     expr = replace_var(expr, param['name'],
-                                       f'q[{i_p + self.indexing_0}]')
+                                       f'{qp}')
             code += self.return_ + ' ' + self.convert(expr) + \
                     self.end_of_line + '\n' + self.fct_end
 
