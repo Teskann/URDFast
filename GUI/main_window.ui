@@ -234,6 +234,9 @@
            <pointsize>10</pointsize>
           </font>
          </property>
+         <property name="cursor">
+          <cursorShape>PointingHandCursor</cursorShape>
+         </property>
          <property name="text">
           <string>Apply</string>
          </property>
@@ -313,7 +316,7 @@
            <item row="2" column="1" colspan="2">
             <widget class="QComboBox" name="comboBox_optimization_level">
              <property name="currentText">
-              <string>2 (Analytic functions, factorized, RECOMMENDED)</string>
+              <string>0 (fastest to generate, numeric functions)</string>
              </property>
              <item>
               <property name="text">
@@ -622,7 +625,7 @@ p, li { white-space: pre-wrap; }
           </font>
          </property>
          <property name="currentIndex">
-          <number>0</number>
+          <number>5</number>
          </property>
          <widget class="QWidget" name="tab_tm">
           <attribute name="title">
@@ -1484,6 +1487,222 @@ p, li { white-space: pre-wrap; }
              </property>
              <property name="text">
               <string>New Condition</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="tab_control_loops">
+          <attribute name="title">
+           <string>Control Loops</string>
+          </attribute>
+          <layout class="QGridLayout" name="gridLayout_14">
+           <item row="0" column="0" rowspan="2" colspan="2">
+            <widget class="QListWidget" name="listWidget_loops">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="2">
+            <widget class="QPushButton" name="pushButton_loops_add">
+             <property name="cursor">
+              <cursorShape>PointingHandCursor</cursorShape>
+             </property>
+             <property name="text">
+              <string>Add</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="2">
+            <widget class="QPushButton" name="pushButton_loops_del">
+             <property name="cursor">
+              <cursorShape>PointingHandCursor</cursorShape>
+             </property>
+             <property name="text">
+              <string>Remove Selected</string>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="0">
+            <widget class="QLabel" name="label_loops_trajectory">
+             <property name="text">
+              <string>Trajectory :</string>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="0" colspan="3">
+            <widget class="QGroupBox" name="groupBox_loops_control_type">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>120</height>
+              </size>
+             </property>
+             <property name="title">
+              <string>Control type</string>
+             </property>
+             <layout class="QGridLayout" name="gridLayout_3">
+              <item row="0" column="0">
+               <widget class="QRadioButton" name="radioButton_loops_geometric">
+                <property name="toolTip">
+                 <string>Select this if you don't want to communicate with any simulator or physical robot</string>
+                </property>
+                <property name="text">
+                 <string>Geometric</string>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="1">
+               <widget class="QRadioButton" name="radioButton_loops_positions">
+                <property name="toolTip">
+                 <string>Select this if you want to control a simulated / physical robot with positions</string>
+                </property>
+                <property name="text">
+                 <string>Positions</string>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="2">
+               <widget class="QRadioButton" name="radioButton_loops_velocities">
+                <property name="toolTip">
+                 <string>Select this if you want to control a simulated / physical robot with velocities</string>
+                </property>
+                <property name="text">
+                 <string>Velocities</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="0">
+               <widget class="QCheckBox" name="checkBox_loops_coppelia">
+                <property name="text">
+                 <string>Coppelia Sim Support</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="1" colspan="2">
+               <widget class="QCheckBox" name="checkBox_loops_constraints">
+                <property name="toolTip">
+                 <string>Create a control loop that can not exceed the physical limits of the robot (max/min positions and velocities)</string>
+                </property>
+                <property name="text">
+                 <string>Consider Constraints (MATLAB only)</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item row="2" column="0" colspan="3">
+            <widget class="QGroupBox" name="groupBox_loops_what">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>200</height>
+              </size>
+             </property>
+             <property name="title">
+              <string>What do you want to control ?</string>
+             </property>
+             <layout class="QGridLayout" name="gridLayout_13">
+              <item row="0" column="0" colspan="4">
+               <widget class="QRadioButton" name="radioButton_loops_effector">
+                <property name="text">
+                 <string>Effector</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="0">
+               <widget class="QLabel" name="label_loops_origin">
+                <property name="text">
+                 <string>Origin :</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="1" colspan="5">
+               <widget class="QComboBox" name="comboBox_loops_origin"/>
+              </item>
+              <item row="2" column="0">
+               <widget class="QLabel" name="label_loops_destination">
+                <property name="text">
+                 <string>Destination :</string>
+                </property>
+               </widget>
+              </item>
+              <item row="2" column="1" colspan="5">
+               <widget class="QComboBox" name="comboBox_loops_destination"/>
+              </item>
+              <item row="3" column="0" colspan="3">
+               <widget class="QRadioButton" name="radioButton_loops_com">
+                <property name="text">
+                 <string>Center of mass</string>
+                </property>
+               </widget>
+              </item>
+              <item row="4" column="0">
+               <widget class="QCheckBox" name="checkBox_loops_x">
+                <property name="text">
+                 <string>x</string>
+                </property>
+               </widget>
+              </item>
+              <item row="4" column="1">
+               <widget class="QCheckBox" name="checkBox_loops_y">
+                <property name="text">
+                 <string>y</string>
+                </property>
+               </widget>
+              </item>
+              <item row="4" column="2">
+               <widget class="QCheckBox" name="checkBox_loops_z">
+                <property name="text">
+                 <string>z</string>
+                </property>
+               </widget>
+              </item>
+              <item row="4" column="3">
+               <widget class="QCheckBox" name="checkBox_loops_wx">
+                <property name="text">
+                 <string>roll</string>
+                </property>
+               </widget>
+              </item>
+              <item row="4" column="4">
+               <widget class="QCheckBox" name="checkBox_loops_wy">
+                <property name="text">
+                 <string>pitch</string>
+                </property>
+               </widget>
+              </item>
+              <item row="4" column="5">
+               <widget class="QCheckBox" name="checkBox_loops_wz">
+                <property name="text">
+                 <string>yaw</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item row="3" column="1" colspan="2">
+            <widget class="QComboBox" name="comboBox_loops_trajectory">
+             <property name="toolTip">
+              <string>Create a trajectory in the &quot;Polynomial Trajectories&quot; tab to select one here.</string>
              </property>
             </widget>
            </item>

@@ -834,12 +834,12 @@ def generate_jacobian(robot, origin, destination, content,
               f'is the derivative of the position/orientation with respect to'
               f' a degree of freedom. \n')
     for i_cc, cc in enumerate(content):
-        docstr += f'    - The line {i_cc} is the derivative of '
+        docstr += f'    - The line {i_cc} is the '
         if cc in "xyz":
-            docstr += f"{cc.upper()} position "
+            docstr += f"derivative of {cc.upper()} position "
         else:
-            d = {"r": "roll", "p": "pitch", "Y": "yaw"}
-            docstr += f"the {d[cc]} orientation "
+            d = {"r": "X", "p": "Y", "Y": "Z"}
+            docstr += f"the angular velocity about the {d[cc]} axis "
         docstr += f"of {dest_name} in the {origin_name} frame,\n"
     docstr += 'Here is the list of all the derivative variables :'
     for i_p, param in enumerate(robot.dof):
