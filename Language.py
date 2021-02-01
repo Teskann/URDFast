@@ -142,6 +142,8 @@ class Language:
             - eye : Matrix Identity
             - zeros : Matrix Zeros
             - cross : Cross product
+            - vcat : vertical concatenation of matrices / vectors
+            - pluseq : += syntax
     
     docstr_before : bool
         True if the docstring is written before the function declaration
@@ -176,6 +178,24 @@ class Language:
     end_loop : str
         End of a loop. For example, in C++: "}", in Python: ""
 
+    time_start : str
+        Expression to start a stopwatch to measure time
+        If anything must be stored in a variable, it must be called "start"
+
+    time_dt : str
+        Expression to get the elapsed time since start time IN SECONDS.
+        If anything must be stored in a variable, it must be called "dt"
+
+    while_ : str
+        While  loop  declaration  syntax.  The  condition  of the loop must be
+        "__COND__"
+
+    if_ : str
+        If statement syntax. The condition of the statement must be "__COND__"
+
+    break_ : str
+        Break statement (to break a for/while loop).
+
     """
 
     # Constructor ============================================================
@@ -185,7 +205,7 @@ class Language:
         Description
         -----------
         
-        Construct a Langauge object from a function name and parameters
+        Construct a Language object from a function name and parameters
         
         Parameters
         ----------
@@ -226,7 +246,9 @@ class Language:
                               "[]": ["[]", True]}
             self.fcts = {'eye': 'eye(__param1__, __param2__)',
                          'zeros': 'zeros((__param1__, __param2__))',
-                         'cross': 'cross(__param1__, __param2__'}
+                         'cross': 'cross(__param1__, __param2__)',
+                         'vcat': 'vstack((__param1__, __param2__))',
+                         'pluseq': '__param1__ += __param2__'}
             self.docstr_before = False
             self.extension = 'py'
             self.mat_obj_start = 'array(['
@@ -235,12 +257,19 @@ class Language:
             self.mat_line_separator = ','
             self.mat_new_line = ['[', ']']
 
-            self.header = "from math import cos, sin\nfrom numpy import " + \
-                          "array, cross, dot, zeros, eye\n"
+            self.header = "from math import cos, sin, acos, abs" \
+                          "\nfrom numpy import vstack, " + \
+                          "array, cross, dot, zeros, eye, transpose, norm" \
+                          "\nimport time"
 
             self.subscription = 1
             self.return_ = "return"
             self.end_loop = ""
+            self.time_start = "start = time.time()"
+            self.time_dt = "dt = time.time() - start"
+            self.while_ = "while __COND__:"
+            self.if_ = "if __COND__:"
+            self.break_ = "break"
 
         # Julia ..............................................................
 
@@ -270,7 +299,9 @@ class Language:
                               '[]': ['[]', True]}
             self.fcts = {'eye': 'Matrix(I,__param1__, __param2__)',
                          'zeros': 'zeros(__param1__, __param2__)',
-                         'cross': 'cross(__param1__, __param2__'}
+                         'cross': 'cross(__param1__, __param2__)',
+                         'vcat': 'vcat(__param1__, __param2__)',
+                         'pluseq': '__param1__ += __param2__'}
             self.docstr_before = True
             self.extension = 'jl'
             self.mat_obj_start = 'vcat('
@@ -284,6 +315,11 @@ class Language:
             self.subscription = 0
             self.return_ = "return"
             self.end_loop = "end"
+            self.time_start = "start = time();"
+            self.time_dt = "dt = time() - start;"
+            self.while_ = "while __COND__"
+            self.if_ = "if __COND__"
+            self.break_ = "break"
 
         # MATLAB .............................................................
 
@@ -313,7 +349,9 @@ class Language:
                               '[]': ['()', True]}
             self.fcts = {'eye': 'eye(__param1__, __param2__)',
                          'zeros': 'zeros(__param1__, __param2__)',
-                         'cross': 'cross(__param1__, __param2__'}
+                         'cross': 'cross(__param1__, __param2__)',
+                         'vcat': "[__param1__; __param2__]",
+                         'pluseq': '__param1__ = __param1__ + __param2__'}
             self.docstr_before = False
             self.extension = 'm'
             self.mat_obj_start = '['
@@ -327,6 +365,11 @@ class Language:
             self.subscription = 0
             self.return_ = "return_value ="
             self.end_loop = "end"
+            self.time_start = "start = tic;"
+            self.time_dt = "dt = toc(start);"
+            self.while_ = "while __COND__"
+            self.if_ = "if __COND__"
+            self.break_ = "break"
 
     def matrix(self, mat_list):
         """
@@ -485,6 +528,20 @@ class Language:
 
         # . . . . . . . . . . . . . .
 
+        # Converting matrix labels
+        pattern = re.compile(
+            (r'(?:^|(?<=(\W)))#mat#([\w\-.*/+()\[\],:]+#)+endmat&'
+             r'(?:$|(?:(\W)))'))
+        all_occur = re.finditer(pattern, expression)
+        rep = []
+        matches = []
+        for occur in all_occur:
+            match = expression[occur.span()[0]:occur.span()[1]]
+            rep.append(match)
+            matches.append(self.matrix_from_label(match))
+        for i_o, match in enumerate(rep):
+            expression = expression.replace(match, f"_MATCH_{i_o}_")
+
         expression = convert_all_sci_to_dbl(expression)
 
         list_op = [[op, False] for op in self.operators]
@@ -492,30 +549,26 @@ class Language:
         list_new_ops = [self.operators[op] for op in self.operators]
 
         expression = replace_many(expression, list_op, list_new_ops)
-
         for function in self.fcts:
-            pattern = re.compile(r'(?:^|(?<=(\W)))_' + function + \
-                                 '_\d+_\d+_(?:$|(?:(\W)))')
+            pattern = re.compile(r'(?:^|(?<=(\W)))___' + function +
+                                 r'__([a-zA-Z0-9\-.@*/+()\[\],:]+_{0,2})+__'
+                                 r'_(?:$|(?:(\W)))?')
             all_occur = re.finditer(pattern, expression)
 
+            oldexp = expression
             for occur in all_occur:
-                match = expression[occur.span()[0]:occur.span()[1]]
-                arg1 = match.split('_')[2]
-                arg2 = match.split('_')[3]
-                repl = self.fcts[function].replace('__param1__', arg1). \
-                    replace("__param2__", arg2)
-                expression = expression.replace(match, repl)
+                if occur.span()[1] >= len(oldexp):
+                    end = occur.span()[1]
+                else:
+                    end = occur.span()[1] - 1
+                match = oldexp[occur.span()[0]+3:end-3]
+                repl = self.fcts[function]
+                for i_arg, arg in enumerate(match.split('__')[1:]):
+                    repl = repl.replace(f'__param{i_arg+1}__', arg)
+                expression = expression.replace(f"___{match}___", repl)
 
-        # Converting matrix labels
-        pattern = re.compile(r'(?:^|(?<=(\W)))#mat#([\w\-.*/+\(\)\[\]]+#)+' + \
-                             r'(?:$|(?:(\W)))')
-        all_occur = re.finditer(pattern, expression)
-
-        for occur in all_occur:
-            match = expression[occur.span()[0]:occur.span()[1]]
-            expression = expression.replace(match,
-                                            self.matrix_from_label(match))
-
+        for i_m, match in enumerate(matches):
+            expression = expression.replace(f"_MATCH_{i_m}_", match)
         return expression
 
     # Justifying docstring ===================================================
@@ -613,7 +666,7 @@ class Language:
 
     # Generate function code =================================================
 
-    def generate_fct(self, fname, params, expr, varss=[], docstr=None,
+    def generate_fct(self, ftype, fname, params, expr, varss=[], docstr=None,
                      matrix_dims=(4, 4), input_is_vector=False, dof=None):
         """
         Description
@@ -623,6 +676,9 @@ class Language:
         
         Parameters
         ----------
+
+        ftype : str
+            Return type of the function ("mat", "double" or "void")
         
         fname : str
             Function name
@@ -671,7 +727,17 @@ class Language:
 
         # Function declaration ...............................................
 
-        code = self.fct_prefix.replace('_fname_', fname)
+        if self.is_typed:
+            types = {"double": self.double_type,
+                     "mat": self.matrix_type,
+                     "void": "void"}
+            code = types + " "
+        else:
+            code = ""
+        code += self.fct_prefix.replace('_fname_', fname)
+
+        if self.name == "matlab" and ftype == "void":
+            code = code.replace("return_value = ", "")
 
         # Parameters .........................................................
 
@@ -753,15 +819,40 @@ class Language:
 
         loops = 0  # Indent level
         for i_var, var in enumerate(varss):
+
+            # Special values . . . . . . . . . . . . . . . . . . . . . . . . .
+
             if var["name"] == "__FOR__":
                 loops += 1
                 code += (self.for_loop(var['value'][0], var['value'][1]) +
                          f"\n{indent(loops + 1)}")
                 continue
+            elif var["name"] == "__WHILE__":
+                loops += 1
+                code += (f"{self.while_.replace('__COND__', var['value'])}"
+                         f"\n{indent(loops + 1)}")
+                continue
+            elif var["name"] == "__IF__":
+                loops += 1
+                code += (f"{self.if_.replace('__COND__', var['value'])}"
+                         f"\n{indent(loops + 1)}")
+                continue
+            elif var["name"] == "__BREAK__":
+                code += f"{self.break_}\n{indent(loops + 1)}"
+                continue
             elif var['name'] == "__ENDLOOP__":
                 loops -= 1
-                code += f"\n{indent(1 + loops)}{self.end_loop}"
+                code = code[:-4] + f"{self.end_loop}\n{indent(loops + 1)}"
                 continue
+            elif var["name"] == "__TIMESTART__":
+                code += f"{self.time_start}\n{indent(loops + 1)}"
+                continue
+            elif var["name"] == "__TIMEDT__":
+                code += f"{self.time_dt}\n{indent(loops + 1)}"
+                continue
+
+            # Normal values  . . . . . . . . . . . . . . . . . . . . . . . . .
+
             if self.is_typed:
                 typ = self.double_type if var['type'] == 'double' else \
                       (self.vector_type if var['type'] == 'vect' else
@@ -778,7 +869,9 @@ class Language:
                     varss[i_var]['value'] = replace_var(varss[i_var]['value'],
                                                         param['name'],
                                                         f'{qp}')
-            code += var['name'] + ' = ' + self.convert(varss[i_var]['value'])
+            if var["type"] != "function":
+                code += var['name'] + ' = '
+            code += self.convert(varss[i_var]['value'])
             code += self.end_of_line + '\n' + indent(1 + loops)
 
         if len(varss) > 0:
@@ -843,8 +936,11 @@ class Language:
                                         None, None, None)
                     expr = replace_var(expr, param['name'],
                                        f'{qp}')
-            code += self.return_ + ' ' + self.convert(expr) + \
-                    self.end_of_line + '\n' + self.fct_end
+            if ftype != "void":
+                code += self.return_ + ' ' + self.convert(expr) + \
+                        self.end_of_line
+
+            code += '\n' + self.fct_end
 
         return code
 

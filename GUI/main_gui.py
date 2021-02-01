@@ -232,7 +232,8 @@ def content_fk_jac_loops(ui, which):
     which : str
         "fk" if the list to update is the Forward Kinematics list
         "jac" if the list to update is the Jacobian matrices list
-        "loops" if the list to update is the Control Loop list
+        "loops_1" if the list to update is the Control Loop list tab 1
+        "loops_2" if the list to update is the Control Loop list tab 2
 
     Returns
     -------
@@ -270,8 +271,8 @@ def content_fk_jac_loops(ui, which):
         if ui.checkBox_jac_wz.isChecked():
             content += "Y"
 
-    # Loops
-    elif which == "loops":
+    # Loops 1
+    elif which == "loops_1":
         if ui.checkBox_loops_x.isChecked():
             content += "x"
         if ui.checkBox_loops_y.isChecked():
@@ -283,6 +284,21 @@ def content_fk_jac_loops(ui, which):
         if ui.checkBox_loops_wy.isChecked():
             content += "p"
         if ui.checkBox_loops_wz.isChecked():
+            content += "Y"
+
+    # Loops 2
+    elif which == "loops_2":
+        if ui.checkBox_loops_x_2.isChecked():
+            content += "x"
+        if ui.checkBox_loops_y_2.isChecked():
+            content += "y"
+        if ui.checkBox_loops_z_2.isChecked():
+            content += "z"
+        if ui.checkBox_loops_wx_2.isChecked():
+            content += "r"
+        if ui.checkBox_loops_wy_2.isChecked():
+            content += "p"
+        if ui.checkBox_loops_wz_2.isChecked():
             content += "Y"
 
     if content == "":
@@ -1123,9 +1139,13 @@ def add_control_loop(ui):
         Every item of this list must be a dict with the following structure :
 
         {"type" : str
-            "effector" or "com"
+            "effector" or "com" for task 1
+         "type_2" : str or None
+            "effector" or "com" or None for task 2
          "ids" : list of str
-            Origin, destination and content
+            Origin, destination and content for task 1
+         "ids_2" : list of str
+            Origin, destination and content for task 2
          "trajectory" : str
             Polynomial trajectory used
          "control_type" : str
@@ -1144,7 +1164,8 @@ def add_control_loop(ui):
     """
 
     loop = {}
-    content = content_fk_jac_loops(ui, "loops")
+    content_1 = content_fk_jac_loops(ui, "loops_1")
+    content_2 = content_fk_jac_loops(ui, "loops_2")
 
     # Effector
     if ui.radioButton_loops_effector.isChecked():
@@ -1170,21 +1191,65 @@ def add_control_loop(ui):
                     else:
                         names[od] = robot_obj.links[nb].name
 
-                    ids[od] = node.name
+                    ids[od] = names[od]
                     continue
             i += 1
-        if content == "INVALID":
+        if content_1 == "INVALID":
             return
-        ids.append(content)
+        ids.append(content_1)
         loop["ids"] = ids
 
-        text = f"{names[0]}  ==>   {names[1]} {parse_content(content)}"
+        text = f"{names[0]}  ==>   {names[1]} {parse_content(content_1)}"
 
     # CoM
     else:
         loop["type"] = "com"
-        loop["ids"] = [None, None, content]
-        text = f"Center of Mass {parse_content(content)}"
+        loop["ids"] = [None, None, content_1]
+        text = f"Center of Mass {parse_content(content_1)}"
+
+    # Effector 2
+    if ui.radioButton_loops_effector_2.isChecked():
+        loop["type_2"] = "effector"
+
+        # Getting the current item
+        ind_o = ui.comboBox_loops_origin_2.currentIndex()
+        ind_d = ui.comboBox_loops_destination_2.currentIndex()
+        if ind_o == ind_d:
+            return
+        names = [0, 0]
+        ids = [0, 0]
+        # Finding the corresponding object
+        i = 0
+        for _, _, node in robot_obj.tree:
+            for od, ind in enumerate([ind_o, ind_d]):
+                if i == ind:
+                    type_, nb = node.name.split('_')
+                    nb = int(nb)
+
+                    if type_ == 'joint':
+                        names[od] = robot_obj.joints[nb].name
+                    else:
+                        names[od] = robot_obj.links[nb].name
+
+                    ids[od] = names[od]
+                    continue
+            i += 1
+        if content_2 == "INVALID":
+            return
+        ids.append(content_2)
+        loop["ids_2"] = ids
+
+        text += "  -  "
+        text += f"{names[0]}  ==>   {names[1]} {parse_content(content_2)}"
+
+    # CoM 2
+    elif ui.radioButton_loops_com_2.isChecked():
+        loop["type_2"] = "com"
+        loop["ids_2"] = [None, None, content_2]
+        text += f" -  Center of Mass {parse_content(content_2)}"
+    else:
+        loop["type_2"] = None
+        loop["ids_2"] = [None, None, None]
 
     loop["trajectory"] = str(ui.comboBox_loops_trajectory.currentText())
     if ui.radioButton_loops_geometric.isChecked():
@@ -1205,6 +1270,7 @@ def add_control_loop(ui):
 
     ui.listWidget_loops.addItem(text)
     control_loops_list.append(loop)
+    print(loop)
 
 
 # Delete a control loop ______________________________________________________
@@ -1231,9 +1297,13 @@ def del_control_loop(ui):
         Every item of this list must be a dict with the following structure :
 
         {"type" : str
-            "effector" or "com"
+            "effector" or "com" for task 1
+         "type_2" : str or None
+            "effector" or "com" or None for task 2
          "ids" : list of str
-            Origin, destination and content
+            Origin, destination and content for task 1
+         "ids_2" : list of str
+            Origin, destination and content for task 2
          "trajectory" : str
             Polynomial trajectory used
          "control_type" : str
@@ -1265,9 +1335,10 @@ def del_control_loop(ui):
         del control_loops_list[index]
         print(control_loops_list)
 
+
 # Disable loops RPY when COM is selected _____________________________________
 
-def disable_loops_rpy(ui):
+def disable_loops_rpy(ui, tab):
     """
     Disables the RPY checkboxes (control loops tab) if the COM radio button is
     selected.
@@ -1277,15 +1348,65 @@ def disable_loops_rpy(ui):
 
     ui : main_window.Ui_MainWindow
         GUI to update
+    tab : int
+        Which tab to disable (1 or 2)
     """
 
-    status = not ui.radioButton_loops_com.isChecked()
-    ui.checkBox_loops_wx.setChecked(status)
-    ui.checkBox_loops_wy.setChecked(status)
-    ui.checkBox_loops_wz.setChecked(status)
-    ui.checkBox_loops_wx.setEnabled(status)
-    ui.checkBox_loops_wy.setEnabled(status)
-    ui.checkBox_loops_wz.setEnabled(status)
+    if tab == 1:
+        status = not ui.radioButton_loops_com.isChecked()
+        ui.checkBox_loops_wx.setChecked(status)
+        ui.checkBox_loops_wy.setChecked(status)
+        ui.checkBox_loops_wz.setChecked(status)
+        ui.checkBox_loops_wx.setEnabled(status)
+        ui.checkBox_loops_wy.setEnabled(status)
+        ui.checkBox_loops_wz.setEnabled(status)
+        ui.comboBox_loops_destination.setEnabled(status)
+        ui.comboBox_loops_origin.setEnabled(status)
+        ui.label_loops_origin.setEnabled(status)
+        ui.label_loops_destination.setEnabled(status)
+    else:
+        if ui.radioButton_loops_none_2.isChecked():
+            ui.checkBox_loops_x_2.setEnabled(False)
+            ui.checkBox_loops_y_2.setEnabled(False)
+            ui.checkBox_loops_z_2.setEnabled(False)
+            ui.checkBox_loops_wx_2.setEnabled(False)
+            ui.checkBox_loops_wy_2.setEnabled(False)
+            ui.checkBox_loops_wz_2.setEnabled(False)
+            ui.comboBox_loops_destination_2.setEnabled(False)
+            ui.comboBox_loops_origin_2.setEnabled(False)
+            ui.label_loops_origin_2.setEnabled(False)
+            ui.label_loops_destination_2.setEnabled(False)
+        elif ui.radioButton_loops_com_2.isChecked():
+            ui.checkBox_loops_wx_2.setChecked(False)
+            ui.checkBox_loops_wy_2.setChecked(False)
+            ui.checkBox_loops_wz_2.setChecked(False)
+            ui.checkBox_loops_wx_2.setEnabled(False)
+            ui.checkBox_loops_wy_2.setEnabled(False)
+            ui.checkBox_loops_wz_2.setEnabled(False)
+            ui.comboBox_loops_destination_2.setEnabled(False)
+            ui.comboBox_loops_origin_2.setEnabled(False)
+            ui.label_loops_origin_2.setEnabled(False)
+            ui.label_loops_destination_2.setEnabled(False)
+            ui.checkBox_loops_x_2.setEnabled(True)
+            ui.checkBox_loops_y_2.setEnabled(True)
+            ui.checkBox_loops_z_2.setEnabled(True)
+        else:
+            ui.checkBox_loops_wx_2.setChecked(True)
+            ui.checkBox_loops_wy_2.setChecked(True)
+            ui.checkBox_loops_wz_2.setChecked(True)
+            ui.checkBox_loops_wx_2.setEnabled(True)
+            ui.checkBox_loops_wy_2.setEnabled(True)
+            ui.checkBox_loops_wz_2.setEnabled(True)
+            ui.comboBox_loops_destination_2.setEnabled(True)
+            ui.comboBox_loops_origin_2.setEnabled(True)
+            ui.label_loops_origin_2.setEnabled(True)
+            ui.label_loops_destination_2.setEnabled(True)
+            ui.checkBox_loops_x_2.setEnabled(True)
+            ui.checkBox_loops_y_2.setEnabled(True)
+            ui.checkBox_loops_z_2.setEnabled(True)
+            ui.checkBox_loops_x_2.setChecked(True)
+            ui.checkBox_loops_y_2.setChecked(True)
+            ui.checkBox_loops_z_2.setChecked(True)
 
 
 # Update GUI State from Robot Object _________________________________________
@@ -1492,9 +1613,11 @@ def init_gui_from_robot(gui, robot):
         gui.comboBox_fk_origin.addItem(pre + name)
         gui.comboBox_jac_origin.addItem(pre + name)
         gui.comboBox_loops_origin.addItem(pre + name)
+        gui.comboBox_loops_origin_2.addItem(pre + name)
         gui.comboBox_fk_destination.addItem(pre + name)
         gui.comboBox_jac_destination.addItem(pre + name)
         gui.comboBox_loops_destination.addItem(pre + name)
+        gui.comboBox_loops_destination_2.addItem(pre + name)
 
     for root in all_roots:
         root_type, rnb = root.split('_')
@@ -1553,6 +1676,7 @@ def init_gui_from_robot(gui, robot):
     gui.checkBox_loops_wx.setChecked(True)
     gui.checkBox_loops_wy.setChecked(True)
     gui.checkBox_loops_wz.setChecked(True)
+    gui.radioButton_loops_none_2.setChecked(True)
 
     gui.radioButton_loops_geometric.setChecked(True)
 
@@ -1733,6 +1857,7 @@ def generate(gui):
     generate_everything(robot_obj, ftm, btm,
                         fk, jac, com, comjac,
                         polynomial_trajectories,
+                        control_loops_list,
                         optimization_level,
                         language,
                         path + '../generated/' + settings["filename"],
@@ -1880,7 +2005,11 @@ def main():
 
     # Control Loops ..........................................................
 
-    ui.radioButton_loops_com.toggled.connect(lambda: disable_loops_rpy(ui))
+    ui.radioButton_loops_com.toggled.connect(lambda: disable_loops_rpy(ui, 1))
+    ui.radioButton_loops_com_2.toggled\
+        .connect(lambda : disable_loops_rpy(ui, 2))
+    ui.radioButton_loops_none_2.toggled \
+        .connect(lambda: disable_loops_rpy(ui, 2))
     ui.pushButton_loops_add.clicked.connect(lambda: add_control_loop(ui))
     ui.pushButton_loops_del.clicked.connect(lambda: del_control_loop(ui))
 

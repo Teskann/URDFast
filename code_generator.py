@@ -13,6 +13,7 @@ from datetime import datetime
 from code_optimization import replace_var, optimize
 from polynomial_trajectory import get_solution, verify_solution, get_equations
 from anytree import PreOrderIter
+from docstrings import *
 
 
 # Update progressbar _________________________________________________________
@@ -37,75 +38,6 @@ def increment_progressbar(progressbar, increment):
         return
     else:
         progressbar.setProperty("value", progressbar.value() + increment)
-
-
-# Get the parameters from sympy ______________________________________________
-
-def get_parameters(syms):
-    """
-    Get the parameters and their description from a list of symbols
-
-    Parameters
-    ----------
-    syms : list of sympy.core.symbol.Symbol
-        List of all the symbols you want to get the parameters from
-
-    Returns
-    -------
-
-    params : list of dict
-        Parameters created. Every element of the list has these keys :
-            - name : str : Variable Name
-            - type : str : Variable Type, can be 'double', 'vect' or 'mat'
-            - description : str : Parameter description (for doc string).
-            This field depends on the name of the symbol.
-    """
-
-    params = []
-    for symbol in syms:
-        param = {'name': str(symbol), 'type': 'double'}
-        category = param['name'].split('_')[0]
-        descr = ''
-        if category == 'd':
-            descr += 'Translation value (in meters) along the '
-            descr += param['name'][2:] + ' prismatic joint axis.'
-
-        elif category == 'dx':
-            descr += 'Translation value (in meters) along the X axis of the '
-            descr += param['name'][3:] + ' joint.'
-
-        elif category == 'dy':
-            descr += 'Translation value (in meters) along the Y axis of the '
-            descr += param['name'][3:] + ' joint.'
-
-        elif category == 'dz':
-            descr += 'Translation value (in meters) along the Z axis of the '
-            descr += param['name'][3:] + ' joint.'
-
-        elif category == 'dz':
-            descr += 'Translation value (in meters) along the Z axis of the '
-            descr += param['name'][3:] + ' joint.'
-
-        elif category == 'theta':
-            descr += 'Rotation value (in radians) around the '
-            descr += param['name'][6:] + ' joint axis.'
-
-        elif category == 'roll':
-            descr += 'Rotation value (in radians) around the X axis of the '
-            descr += param['name'][5:] + ' joint.'
-
-        elif category == 'pitch':
-            descr += 'Rotation value (in radians) around the Y axis of the '
-            descr += param['name'][6:] + ' joint.'
-
-        elif category == 'yaw':
-            descr += 'Rotation value (in radians) around the Z axis of the '
-            descr += param['name'][4:] + ' joint.'
-
-        param['description'] = descr
-
-        params.append(param)
-    return params
 
 
 # Generate Python code from Sympy Matrix _____________________________________
@@ -181,7 +113,7 @@ def generate_code_from_sym_mat(sympy_matrix, fname,
     syms.sort(key=lambda x: str(x))
     params = get_parameters(syms)
 
-    r = language.generate_fct(fname, params, code_mat, varss=varss,
+    r = language.generate_fct("mat", fname, params, code_mat, varss=varss,
                               docstr=docstr,
                               input_is_vector=input_is_vector,
                               matrix_dims=(len(code_mat), len(code_mat[0])),
@@ -497,7 +429,7 @@ def generate_fk(robot, origin, destination, content, optimization_level,
 
     if len(varss) == 0:
         variable = {'name': 'T',
-                    'value': '_eye_4_4_',
+                    'value': '___eye__4__4___',
                     'type': 'mat'}
         varss.append(variable)
     expr = ''
@@ -509,7 +441,7 @@ def generate_fk(robot, origin, destination, content, optimization_level,
 
     params.sort(key=lambda x: x['name'])
 
-    code += language.generate_fct(fname, params, expr, varss, docstr,
+    code += language.generate_fct("mat", fname, params, expr, varss, docstr,
                                   matrix_dims=(1, 1), input_is_vector=True,
                                   dof=robot.dof)
 
@@ -744,7 +676,7 @@ def generate_jacobian(robot, origin, destination, content,
         nb_dof = len(params)
 
         varss.append({'name': 'Jac',
-                      'value': f"_zeros_6_{nb_dof}_",
+                      'value': f"___zeros__6__{nb_dof}___",
                       'type': 'mat'})
 
         varss.append({'name': 'T',
@@ -856,7 +788,8 @@ def generate_jacobian(robot, origin, destination, content,
                               None, None, None)
                 varss[i_v]['value'] = replace_var(var['value'],
                                                   param['name'], qp)
-        code += language.generate_fct(fname, parameters, expr, varss, docstr,
+        code += language.generate_fct("mat", fname, parameters, expr, varss,
+                                      docstr,
                                       matrix_dims=(1, 1))
     else:
         code += generate_code_from_sym_mat(jac, fname, language, docstr,
@@ -1021,7 +954,7 @@ def generate_com(robot, optimization_level, language=Language('python'),
 
         # Initial transformation
         var = {'name': 'T',
-               'value': '_eye_4_4_',
+               'value': '___eye__4__4___',
                'type': 'mat'}
 
         varss.append(var)
@@ -1043,7 +976,7 @@ def generate_com(robot, optimization_level, language=Language('python'),
                     continue
                 cm = robot.links[obj_nb].com
                 pos_val = f'#mat#4#1#{str(cm[0, 0])}#{str(cm[1, 0])}#' + \
-                          f'{str(cm[2, 0])}#1.0#'
+                          f'{str(cm[2, 0])}#1.0#endmat&'
                 pos_var = {'name': f'com_{obj_nb}_xyz',
                            'value': pos_val,
                            'type': 'vect'}
@@ -1153,7 +1086,7 @@ def generate_com(robot, optimization_level, language=Language('python'),
              f' is returned as a {dimensions}'
 
     if optimization_level == 0:
-        code += language.generate_fct('com', [paramq], expr[1:], varss,
+        code += language.generate_fct("mat", 'com', [paramq], expr[1:], varss,
                                       docstr, matrix_dims=(1, 1))
     else:
         code += generate_code_from_sym_mat(com, 'com', language, docstr,
@@ -1238,12 +1171,12 @@ def generate_com_jacobian(robot, optimization_level,
 
         # Init Jacobian
         varss.append({'name': 'Jac',
-                      'value': f"_zeros_3_{nb_dof}_",
+                      'value': f"___zeros__3__{nb_dof}___",
                       'type': 'mat'})
 
         # Initial transformation
         var = {'name': 'T',
-               'value': '_eye_4_4_',
+               'value': '___eye__4__4___',
                'type': 'mat'}
 
         varss.append(var)
@@ -1267,7 +1200,7 @@ def generate_com_jacobian(robot, optimization_level,
                     continue
                 cm = robot.links[obj_nb].com
                 pos_val = f'#mat#4#1#{str(cm[0, 0])}#{str(cm[1, 0])}#' + \
-                          f'{str(cm[2, 0])}#1.0#'
+                          f'{str(cm[2, 0])}#1.0#endmat&'
                 pos_var = {'name': f'com_{obj_nb}_xyz',
                            'value': pos_val,
                            'type': 'vect'}
@@ -1420,7 +1353,8 @@ def generate_com_jacobian(robot, optimization_level,
                   f'{param.name}'
 
     if optimization_level == 0:
-        code += language.generate_fct('jacobian_com', paar, expr, varss,
+        code += language.generate_fct("mat", 'jacobian_com', paar, expr,
+                                      varss,
                                       docstr, matrix_dims=(1, 1))
     else:
         code += generate_code_from_sym_mat(jac, 'jacobian_com', language,
@@ -1483,6 +1417,9 @@ def generate_polynomial_trajectory(conditions, function_name, language):
         for the 2nd derivative (acceleration) will be called "d2_poly_1()".
         The 0th derivative (position) will give "d0_poly_1()".
 
+    parameters : dict of list of dict
+        Parameters of the trajectory (for position)
+
     """
 
     conditions_ = [condition.copy() for condition in conditions]
@@ -1542,7 +1479,6 @@ def generate_polynomial_trajectory(conditions, function_name, language):
         except ValueError:
             return Symbol(string, real=True)
 
-    symbolic_variables = []
     for condition in conditions_:
         condition[0] = int(condition[0])
         condition[1] = str_to_sym_or_float(condition[1])  # time_value
@@ -1562,6 +1498,7 @@ def generate_polynomial_trajectory(conditions, function_name, language):
     # Polynomials -> Code ....................................................
 
     code = language.title("Trajectory " + function_name, 1) + '\n\n'
+    parameters_0 = []
     for i, polynomial in enumerate(solution):
         fname = "d" + str(i) + "_" + function_name
         docstring = "Trajectory polynomial. This function returns the " + \
@@ -1583,13 +1520,15 @@ def generate_polynomial_trajectory(conditions, function_name, language):
                                    type="double",
                                    description="Time variable" if
                                    param == Symbol('t') else ""))
+        if i == 0:
+            parameters_0 = parameters
 
         varss, expr = optimize(str(polynomial))
 
-        code += language.generate_fct(fname, parameters, expr, varss,
+        code += language.generate_fct("mat", fname, parameters, expr, varss,
                                       docstring, (1, 1), False) + '\n\n'
 
-    return code
+    return code, parameters_0
 
 
 # Generate all the polynomial trajectories ___________________________________
@@ -1659,14 +1598,672 @@ def generate_all_polynomial_trajectories(trajectories, language,
         for the 2nd derivative (acceleration) will be called "d2_poly_1()".
         The 0th derivative (position) will give "d0_poly_1()".
 
+    poly_parameters : dict of list of dict
+        Parameters of the polynomial trajectories
+
     """
 
     code = "\n\n" + language.title("Polynomial Trajectories", 0) + "\n\n"
 
+    poly_parameters = {}
     for trajectory in trajectories:
-        code += generate_polynomial_trajectory(trajectory["conditions"],
-                                               trajectory["name"],
-                                               language)
+        code_, par = generate_polynomial_trajectory(trajectory["conditions"],
+                                                    trajectory["name"],
+                                                    language)
+        code += code_
+        poly_parameters[trajectory["name"]] = par
+        increment_progressbar(progressbar, progress_increment)
+
+    return code, poly_parameters
+
+
+# Control loops ______________________________________________________________
+
+def generate_control_loop(loop, robot, traj_parameters, language):
+    """
+    Generate the code for control loop in the desired language
+
+    Parameters
+    ----------
+    loop : dict
+        Dictionary with the following structure :
+
+        {"type" : str
+            "effector" or "com" for task 1
+         "type_2" : str or None
+            "effector" or "com" or None for task 2
+         "ids" : list of str
+            Origin, destination and content for task 1
+         "ids_2" : list of str
+            Origin, destination and content for task 2
+         "trajectory" : str
+            Polynomial trajectory used
+         "control_type" : str
+            "geometric", "positions" or "velocities"
+         "coppelia" : bool
+            True if coppelia sim support is enabled
+         "constraints" : bool
+            True if the constraints are enabled
+        }
+
+    robot : robots.Robot
+        Robot for which you want to create the control loop
+
+    traj_parameters : dict of list of dict
+        All  the  parameters  of  the  polynomial  trajectory  that  have been
+        generated before. The keys of the dict are the trajectories names.
+        Values are the list of parameters.
+
+    language : Language.Language
+        Language of the generated code
+
+    Returns
+    -------
+
+    code : str
+        Generated code
+    """
+
+    # Function name, docstring ...............................................
+
+    fname = f"kinematic_control_loop_{loop['type']}_{loop['ids'][2]}"
+    docstr = docstr_control_loop(loop)
+
+    # defining Parameters ....................................................
+
+    param_q0 = {"name": "q0",
+                "type": "mat",
+                "description": ("Initial configuration of the robot. " +
+                                robot_dof_descr(robot, "q0", language))}
+    param_Td = {"name": "Td__I__",
+                "type": "mat",
+                "description": "Desired configuration to reach__IT__. Must "
+                               "be given as a (4 x 4) matrix in homogeneous "
+                               "coordinates."}
+    param_Xd = {"name": "Xd__I__",
+                "type": "mat",
+                "description": "Desired position to reach__IT__."}
+    param_Od = {"name": "Ad__I__",
+                "type": "mat",
+                "description": "Desired orientation to reach__IT__. Must "
+                               "be given as a (3 x 3) rotation matrix."}
+    param_comd = {"name": "comd__I__",
+                  "type": "mat",
+                  "description": "Desired position of the center of mass."}
+    param_kp = {"name": "kp__I__",
+                "type": "double",
+                "description": "Proportional controller for __POSITION__"
+                               "__IT__. "
+                               "For more details, check out the block scheme "
+                               "of this control loop."}
+
+    param_ko = {"name": "ko__I__",
+                "type": "double",
+                "description": "Proportional controller for __ORIENTATION__"
+                               "__IT__. "
+                               "For more details, check out the block scheme "
+                               "of this control loop."}
+
+    param_err_max = {"name": "err_max",
+                     "type": "double",
+                     "description": "Maximum euclidean norm of the error. If "
+                                    "the measured error is less than this "
+                                    "value, the task is considered as "
+                                    "done (the loop breaks)."}
+
+    param_beta = {"name": "beta",
+                  "type": "double",
+                  "description": "Regularizer for constraints on joint "
+                                 "positions. For more details, check out the "
+                                 "block scheme of this control loop."}
+
+    additional_parameters = []
+    if loop["trajectory"] != "(None)":
+        for param in traj_parameters[loop["trajectory"]]:
+            if param["name"] != "t":
+                additional_parameters.append(param)
+
+    # Find fk and jacobians ..................................................
+
+    # Task 1 only
+    if loop["type_2"] is None:
+        suffix = [""]
+        it = [""]
+        ids = [loop["ids"]]
+        types = [loop["type"]]
+        n = 1
+
+    # Tasks 1 et 2
+    else:
+        suffix = ["_1", "_2"]
+        it = [" for task 1", " for task 2"]
+        ids = [loop["ids"], loop["ids_2"]]
+        types = [loop["type"], loop["type_2"]]
+        n = 2
+
+    jacobians = []
+    fks = []
+
+    for i in range(n):
+        pos, ori = split_content(ids[i][2])
+        if types[i] == "effector":
+            if ori != "":
+                ct = f"{pos}o"
+            else:
+                ct = ids[i][2]
+            fks.append(f"MATLAB_PREFIXfk_{ids[i][0]}_{ids[i][1]}_{ct}(q)")
+            jacobians.append(f"MATLAB_PREFIXjacobian_{ids[i][0]}_to_"
+                             f"{ids[i][1]}_{ids[i][2]}(q)")
+        else:
+            fks.append(f"MATLAB_PREFIXcom_{pos}(q)")
+            jacobians.append(f"MATLAB_PREFIXjacobian_com_{pos}(q)")
+
+    # Selecting parameters ...................................................
+
+    params = []
+
+    fk_vars = []
+    fkd_vars = []
+    X_vars = []
+    Xd_vars = []
+    O_vars = []
+    Od_vars = []
+    X0_vars = []
+    O0_vars = []
+    Ak_vars = [[[], [], []], [[], [], []]]
+    Ak_d_traj_vars = [[[], [], []], [[], [], []]]
+    Ak_d_vars = [[[], [], []], [[], [], []]]
+
+    for i in range(n):
+        pos, ori = split_content(ids[i][2])
+
+        # Position and orientation
+        if pos != "" and ori != "":
+            params.append(param_Td.copy())
+            params.append(param_kp.copy())
+            params.append(param_ko.copy())
+            fk_vars.append(f"T{suffix[i]}")
+            fkd_vars.append(f"Td{suffix[i]}")
+            X_vars.append(language.slice_mat(fk_vars[i], 0, 2, 3, None))
+            Xd_vars.append(language.slice_mat(fkd_vars[i], 0, 2, 3, None))
+            O_vars.append(language.slice_mat(fk_vars[i], 0, 2, 0, 2))
+            Od_vars.append(language.slice_mat(fkd_vars[i], 0, 2, 0, 2))
+            X0_vars.append(language.slice_mat(f"T0{suffix[i]}", 0, 2, 3,
+                                              None))
+            O0_vars.append(language.slice_mat(f"T0{suffix[i]}", 0, 2, 0, 2))
+            for k in range(3):
+                for l in range(3):
+                    Ak_vars[i][k].append(language.slice_mat(fk_vars[i], k,
+                                                            None, l, None))
+                    Ak_d_vars[i][k].append(language.slice_mat(fkd_vars[i], k,
+                                                           None, l, None))
+                    Ak_d_traj_vars[i][k].append(language
+                                             .slice_mat(f"Ad_tmp{suffix[i]}",
+                                                        k, None, l, None))
+
+        # Only Position
+        elif pos != "":
+            if types[i] == "effector":
+                params.append(param_Xd.copy())
+                fk_vars.append(f"X{suffix[i]}")
+                fkd_vars.append(f"Xd{suffix[i]}")
+            else:
+                params.append(param_comd.copy())
+                fk_vars.append(f"com{suffix[i]}")
+                fkd_vars.append(f"comd{suffix[i]}")
+            params[-1]["description"] += \
+                descr_from_content(pos, params[-1]["name"], language)
+            params.append(param_kp.copy())
+            X_vars.append(fk_vars[i])
+            Xd_vars.append(fkd_vars[i])
+            X0_vars.append(fks[i])
+            O_vars.append(None)
+            Od_vars.append(None)
+            O0_vars.append(None)
+            for k in range(3):
+                for _ in range(3):
+                    Ak_vars[i][k].append(None)
+                    Ak_d_vars[i][k].append(None)
+                    Ak_d_traj_vars[i][k].append(None)
+
+        # Only orientation
+        else:
+            params.append(param_Od.copy())
+            params.append(param_ko.copy())
+            fk_vars.append(f"A{suffix[i]}")
+            fkd_vars.append(f"Ad{suffix[i]}")
+            X_vars.append(None)
+            Xd_vars.append(None)
+            X0_vars.append(None)
+            O_vars.append(fk_vars[i])
+            Od_vars.append(fkd_vars[i])
+            O0_vars.append(fks[i])
+            for k in range(3):
+                for l in range(3):
+                    Ak_vars[i][k].append(language.slice_mat(fk_vars[i], k,
+                                                            None, l, None))
+                    Ak_d_vars[i][k].append(language.slice_mat(fkd_vars[i], k,
+                                                           None, l, None))
+                    Ak_d_traj_vars[i][k].append(language
+                                             .slice_mat(f"Ad_tmp{suffix[i]}",
+                                                        k, None, l, None))
+
+        for param in params:
+            param["name"] = param["name"].replace("__I__", suffix[i])
+            param["description"] = param["description"] \
+                .replace("__IT__", it[i])\
+                .replace("__I__", suffix[i]) \
+                .replace("__POSITION__", f"the position of the {types[i]}") \
+                .replace("__ORIENTATION__",
+                         f"the orientation of the {types[i]}")
+
+    params.append(param_err_max)
+    if loop["constraints"]:
+        params.append(param_beta)
+    if loop["control_type"] == "geometric":
+        params.append(param_q0)
+    params += additional_parameters
+
+    # Variables and function body ............................................
+
+    varss = []
+
+    # Time variable
+    var_t = {"name": "t",
+             "type": "double",
+             "value": "0"}
+    varss.append(var_t)
+
+    # dt variable
+    var_dt = {"name": "dt",
+              "type": "double",
+              "value": "0.01"}
+    if loop["constraints"]:
+        varss.append(var_dt)
+
+    # Initial q
+    var_q = {"name": "q",
+             "type": "mat",
+             "value": "q0" if loop["control_type"] == "geometric" else
+                      "get_positions()"}
+    varss.append(var_q)
+
+    # Initial configurations
+    if loop["trajectory"] != "(None)":
+        for i in range(n):
+            pos, ori = split_content(ids[i][2])
+            if pos != "" and ori != "":
+                var_T0 = {"name": f"T0{suffix[i]}",
+                          "type":"mat",
+                          "value": fks[i]}
+                varss.append(var_T0)
+
+            if X0_vars[i] is not None:
+                var_X0 = {"name": f"X0{suffix[i]}",
+                          "type": "mat",
+                          "value": X0_vars[i]}
+                varss.append(var_X0)
+            if O0_vars[i] is not None:
+                var_O0 = {"name": f"A0{suffix[i]}",
+                          "type": "mat",
+                          "value": O0_vars[i]}
+                varss.append(var_O0)
+                A = f"A0_err{suffix[i]}"
+                var_A = {"name": A,
+                         "type": "mat",
+                         "value": f"{Od_vars[i]} @ transpose({O0_vars[i]})"}
+                varss.append(var_A)
+
+                a11 = language.slice_mat(A, 0, None, 0, None)
+                a22 = language.slice_mat(A, 1, None, 1, None)
+                a33 = language.slice_mat(A, 2, None, 2, None)
+                var_theta_f = {"name": f"theta_f{suffix[i]}",
+                               "type": "double",
+                               "value": f"acos(0.5*({a11}+{a22}+{a33}-1))"}
+                varss.append(var_theta_f)
+
+                var_u0 = {"name": f"u{suffix[i]}",
+                          "type": "mat",
+                          "value": "#mat#3#1#0#0#0#endmat&"}
+                varss.append(var_u0)
+
+                var_if_u0 = {"name": "__IF__",
+                             "type": "",
+                             "value": f"abs(theta_f{suffix[i]}) > 1e-10"}
+                varss.append(var_if_u0)
+
+                er0 = (f"{language.slice_mat(A, 2, None, 1, None)}-"
+                       f"{language.slice_mat(A, 1, None, 2, None)}")
+                er1 = (f"{language.slice_mat(A, 0, None, 2, None)}-"
+                       f"{language.slice_mat(A, 2, None, 1, None)}")
+                er2 = (f"{language.slice_mat(A, 1, None, 0, None)}-"
+                       f"{language.slice_mat(A, 0, None, 1, None)}")
+                var_u = {"name": f"u{suffix[i]}",
+                         "type": "mat",
+                         "value": f"0.5/sin(theta_f{suffix[i]})*"
+                                  f"#mat#3#1#{er0}#{er1}#{er2}#endmat&"}
+                varss.append(var_u)
+
+                var_end_if = {"name": "__ENDLOOP__",
+                              "type": "",
+                              "value": ""}
+                varss.append(var_end_if)
+
+    # Start counting time
+    var_time_start = {"name": "__TIMESTART__",
+                      "type": "",
+                      "value": ""}
+    varss.append(var_time_start)
+
+    # While loop variable
+    var_while = {"name": "__WHILE__",
+                 "type": "",
+                 "value": "1"}
+    varss.append(var_while)
+
+    # Compute FKs
+    for i in range(n):
+        var_fk = {"name": fk_vars[i],
+                  "type": "mat",
+                  "value": fks[i]}
+        varss.append(var_fk)
+
+    # Compute errors
+    err_vars = ""
+    for i in range(n):
+        pos, ori = split_content(ids[i][2])
+        X_val = X_vars[i]
+        Xd_val = Xd_vars[i]
+        O_val = O_vars[i]
+        Od_val = Od_vars[i]
+        if pos != "":
+            var_err_pos = {"name": f"err_pos{suffix[i]}",
+                           "type": "mat",
+                           "value": f"norm({Xd_val} - {X_val})"}
+            varss.append(var_err_pos)
+            err_vars += "+" + var_err_pos["name"]
+        if ori != "":
+            var_A = {"name": f"E{suffix[i]}",
+                     "type": "mat",
+                     "value": f"{Od_val} @ transpose({O_val})"}
+            varss.append(var_A)
+            er0 = (f"{language.slice_mat(f'E{suffix[i]}', 2, None, 1, None)}-"
+                   f"{language.slice_mat(f'E{suffix[i]}', 1, None, 2, None)}")
+            er1 = (f"{language.slice_mat(f'E{suffix[i]}', 0, None, 2, None)}-"
+                   f"{language.slice_mat(f'E{suffix[i]}', 2, None, 1, None)}")
+            er2 = (f"{language.slice_mat(f'E{suffix[i]}', 1, None, 0, None)}-"
+                   f"{language.slice_mat(f'E{suffix[i]}', 0, None, 1, None)}")
+            var_err_o = {"name": f"err_o{suffix[i]}",
+                         "type": "mat",
+                         "value": f"0.5*#mat#3#1#{er0}#{er1}#{er2}#endmat&"}
+            varss.append(var_err_o)
+            err_vars += f"+norm({var_err_o['name']})"
+
+    # If err_max statement
+    var_if = {"name": "__IF__",
+              "type": "",
+              "value": f"{err_vars[1:]} < err_max"}
+    varss.append(var_if)
+
+    # Break statement
+    var_break = {"name": "__BREAK__",
+                 "type": "",
+                 "value": ""}
+    varss.append(var_break)
+
+    # End if statement
+    var_endif = {"name": "__ENDLOOP__",
+                 "type": "",
+                 "value": ""}
+    varss.append(var_endif)
+
+    # Trajectory generation
+    if loop["trajectory"] != "(None)":
+        for i in range(n):
+            pos, ori = split_content(ids[i][2])
+            param_trj = ""
+            for i_p, prm in enumerate(traj_parameters[loop['trajectory']]):
+                param_trj += prm["name"]
+                if i_p < len(traj_parameters[loop['trajectory']]) - 1:
+                    param_trj += ', '
+            r_t = f"MATLAB_PREFIXd0_{loop['trajectory']}({param_trj})"
+            r_dot_t = f"MATLAB_PREFIXd1_{loop['trajectory']}({param_trj})"
+            if pos != '':
+                var_Xd_tmp = {"name": f"Xd_tmp{suffix[i]}",
+                              "type": "mat",
+                              "value": f"X0{suffix[i]}+({Xd_vars[i]}-"
+                                       f"X0{suffix[i]})*{r_t}"}
+                varss.append(var_Xd_tmp)
+
+                var_Xdd_tmp = {"name": f"Xdot_d_tmp{suffix[i]}",
+                               "type": "mat",
+                               "value": f"({Xd_vars[i]}-X0{suffix[i]})*"
+                                        f"{r_dot_t}"}
+                varss.append(var_Xdd_tmp)
+
+                var_X_dot = {"name": f"Xdot{suffix[i]}",
+                             "type": "mat",
+                             "value": f"(Xd_tmp{suffix[i]}-{X_vars[i]})"
+                                      f"*kp{suffix[i]}+Xdot_d_tmp{suffix[i]}"}
+                varss.append(var_X_dot)
+            if ori != '':
+                var_theta_t = {"name": f"theta_t{suffix[i]}",
+                               "type": "double",
+                               "value": f"theta_f{suffix[i]}*{r_t}"}
+                varss.append(var_theta_t)
+
+                S12 = "-" + language.slice_mat(f"u{suffix[i]}", 2, None, None,
+                                               None)
+                S13 = language.slice_mat(f"u{suffix[i]}", 1, None, None, None)
+                S21 = language.slice_mat(f"u{suffix[i]}", 2, None, None, None)
+                S23 = "-" + language.slice_mat(f"u{suffix[i]}", 0, None, None,
+                                               None)
+                S31 = "-" + language.slice_mat(f"u{suffix[i]}", 1, None, None,
+                                               None)
+                S32 = language.slice_mat(f"u{suffix[i]}", 0, None, None, None)
+                val_S = (f"#mat#3#3#0#{S12}#{S13}#{S21}#0#{S23}#{S31}#{S32}"
+                         f"#0#endmat&")
+                var_S = {"name": f"S{suffix[i]}",
+                         "type": "mat",
+                         "value": val_S}
+                varss.append(var_S)
+
+                var_Od_tmp = {"name": f"Ad_tmp{suffix[i]}",
+                              "type": "mat",
+                              "value": "#mat#3#3#1#0#0#0#1#0#0#0#1#endmat& + "
+                                       f"S{suffix[i]}*sin(theta_t{suffix[i]})"
+                                       f"+(S{suffix[i]}@S{suffix[i]})*(1-cos"
+                                       f"(theta_t{suffix[i]}))@{Od_vars[i]}"}
+                varss.append(var_Od_tmp)
+                var_wd_tmp = {"name": f"wd_tmp{suffix[i]}",
+                              "type": "mat",
+                              "value": f"{r_dot_t}*theta_f{suffix[i]}*"
+                                       f"u{suffix[i]}"}
+                varss.append(var_wd_tmp)
+
+                # L Matrix
+                L_val = "-0.5*( S0 + S1 + S2 )"
+                for l in range(3):
+                    val_A = (f"#mat#3#3#0#-{Ak_vars[i][2][l]}#"
+                             f"{Ak_vars[i][1][l]}#"
+                             f"{Ak_vars[i][2][l]}#0#-{Ak_vars[i][0][l]}#-"
+                             f"{Ak_vars[i][1][l]}#{Ak_vars[i][0][l]}"
+                             f"#0#endmat&")
+                    val_Ad = (f"#mat#3#3#0#-{Ak_d_traj_vars[i][2][l]}#"
+                             f"{Ak_d_traj_vars[i][1][l]}#"
+                             f"{Ak_d_traj_vars[i][2][l]}#0#"
+                             f"-{Ak_d_traj_vars[i][0][l]}#-"
+                             f"{Ak_d_traj_vars[i][1][l]}#"
+                             f"{Ak_d_traj_vars[i][0][l]}#0#endmat&")
+
+                    L_val = L_val.replace(f"S{l}", f"{val_A} @ {val_Ad}")
+                var_L = {"name": f"L{suffix[i]}",
+                         "type": "mat",
+                         "value": L_val}
+                varss.append(var_L)
+
+                var_w = {"name": f"w{suffix[i]}",
+                         "type": "mat",
+                         "value": f"L{suffix[i]}**(-1) @ (err_o{suffix[i]}"
+                                  f"*ko{suffix[i]} + transpose(L{suffix[i]})"
+                                  f"@wd_tmp{suffix[i]})"}
+                varss.append(var_w)
+
+    # No trajectory Generation
+    else:
+        for i in range(n):
+            pos, ori = split_content(ids[i][2])
+            if pos != "":
+                var_X_dot = {"name": f"Xdot{suffix[i]}",
+                             "type": "mat",
+                             "value": f"({Xd_vars[i]}-{X_vars[i]})"
+                                      f"*kp{suffix[i]}"}
+                varss.append(var_X_dot)
+            if ori != "":
+                # L Matrix
+                L_val = "-0.5*( S0 + S1 + S2 )"
+                for l in range(3):
+                    val_A = (f"#mat#3#3#0#-{Ak_vars[i][2][l]}#"
+                             f"{Ak_vars[i][1][l]}#"
+                             f"{Ak_vars[i][2][l]}#0#-{Ak_vars[i][0][l]}#-"
+                             f"{Ak_vars[i][1][l]}#{Ak_vars[i][0][l]}"
+                             f"#0#endmat&")
+                    val_Ad = (f"#mat#3#3#0#-{Ak_d_vars[i][2][l]}#"
+                              f"{Ak_d_vars[i][1][l]}#"
+                              f"{Ak_d_vars[i][2][l]}#0#"
+                              f"-{Ak_d_vars[i][0][l]}#-"
+                              f"{Ak_d_vars[i][1][l]}#"
+                              f"{Ak_d_vars[i][0][l]}#0#endmat&")
+
+                    L_val = L_val.replace(f"S{l}", f"{val_A} @ {val_Ad}")
+                var_L = {"name": f"L{suffix[i]}",
+                         "type": "mat",
+                         "value": L_val}
+                varss.append(var_L)
+
+                var_w = {"name": f"w{suffix[i]}",
+                         "type": "mat",
+                         "value": f"L{suffix[i]}**(-1) @ (err_o{suffix[i]}"
+                                  f"*ko{suffix[i]})"}
+                varss.append(var_w)
+
+    # Concatenation position & orientation
+    concat_names = []
+    for i in range(n):
+        pos, ori = split_content(ids[i][2])
+        if pos != "" and ori != "":
+            concat_names.append(f"Xdot_w{suffix[i]}")
+            var_concat = {"name": f"Xdot_w{suffix[i]}",
+                          "type": "mat",
+                          "value": f"___vcat__Xdot{suffix[i]}__w{suffix[i]}"
+                                   f"___"}
+            varss.append(var_concat)
+        elif pos != "":
+            concat_names.append(f"Xdot{suffix[i]}")
+        else:
+            concat_names.append(f"w{suffix[i]}")
+
+    # Jacobians
+    if not loop["constraints"]:
+        if n == 1:
+            var_qdot = {"name": f"qdot{suffix[0]}",
+                        "type": "mat",
+                        "value": f"pinv({jacobians[0]}) @ {concat_names[0]}"}
+            varss.append(var_qdot)
+        else:
+            var_j_1 = {"name": "J_1",
+                       "type": "mat",
+                       "value": f"{jacobians[0]}"}
+            varss.append(var_j_1)
+
+            var_pinv = {"name": f"pinv_J_1",
+                        "type": "mat",
+                        "value": f"pinv(J_1)"}
+            varss.append(var_pinv)
+
+            var_qdot1 = {"name": f"qdot_1",
+                         "type": "mat",
+                         "value": f"pinv_J_1 @ {concat_names[0]}"}
+            varss.append(var_qdot1)
+
+            var_j_2 = {"name": "J_2",
+                       "type": "mat",
+                       "value": f"{jacobians[1]}"}
+            varss.append(var_j_2)
+
+            dim_I = f"{len(robot.dof)}__{len(robot.dof)}"
+            var_qdot2 = {"name": "qdot",
+                         "type": "mat",
+                         "value": f"qdot_1+pinv(J_2 @ ( ___eye__{dim_I}___- "
+                                  f"pinv_J_1@J_1)) @ ({concat_names[1]}-"
+                                  f"J_2@qdot_1)"}
+            varss.append(var_qdot2)
+
+    # TODO Quadprog
+    else:
+        pass
+
+    if loop["control_type"] == "velocities":
+        var_set_vel = {"name": "",
+                       "type": "function",
+                       "value": "set_velocities(qdot)"}
+        varss.append(var_set_vel)
+        var_get_pos = {"name": "q",
+                       "type": "",
+                       "value": "get_positions()"}
+        varss.append(var_get_pos)
+
+    # dt
+    var_dt = {"name": "__TIMEDT__",
+              "type": "",
+              "value": ""}
+    varss.append(var_dt)
+    varss.append(var_time_start)
+    var_t = {"name": "t",
+             "type": "function",
+             "value": "___pluseq__t__dt___"}
+    varss.append(var_t)
+
+    if loop["control_type"] != "velocities":
+        # Integration
+        var_q = {"name": "",
+                 "type": "function",
+                 "value": "___pluseq__q__qdot*dt___"}
+        varss.append(var_q)
+
+    if loop["control_type"] == "positions":
+        var_set_pos = {"name": "",
+                       "type": "function",
+                       "value": "set_positions(q)"}
+        varss.append(var_set_pos)
+        var_get_pos = {"name": "q",
+                       "type": "",
+                       "value": "get_positions()"}
+        varss.append(var_get_pos)
+
+    # Closing while loop
+    varss.append(var_endif)
+
+    # Generate function ......................................................
+
+    return language.generate_fct("void", fname, params, "", varss,
+                                 docstr=docstr,
+                                 matrix_dims=(1, 1))
+
+
+# All control loops __________________________________________________________
+
+def generate_all_control_loops(control_loops_list,
+                               robot,
+                               traj_parameters,
+                               language,
+                               progressbar=None,
+                               progress_increment=0):
+    code = "\n\n" + language.title("Control Loops", 0) + "\n\n"
+
+    for loop in control_loops_list:
+        code += generate_control_loop(loop, robot, traj_parameters, language)
+        code += "\n\n"
         increment_progressbar(progressbar, progress_increment)
 
     return code
@@ -1675,7 +2272,8 @@ def generate_all_polynomial_trajectories(trajectories, language,
 # Generate Everything ________________________________________________________
 
 def generate_everything(robot, list_ftm, list_btm, list_fk, list_jac, com,
-                        com_jac, polynomial_trajectories, optimization_level,
+                        com_jac, polynomial_trajectories, control_loops_list,
+                        optimization_level,
                         language, filename, progressbar=None):
     """
     Description
@@ -1772,6 +2370,29 @@ def generate_everything(robot, list_ftm, list_btm, list_fk, list_jac, com,
                 Value  of the  function  for  the  given  time.  This can be a
                 symbolic variable
         }
+
+    control_loops_list : list of dict
+        list of all the control_loops to generate.
+
+        Every item of this list must be a dict with the following structure :
+
+        {"type" : str
+            "effector" or "com" for task 1
+         "type_2" : str or None
+            "effector" or "com" or None for task 2
+         "ids" : list of str
+            Origin, destination and content for task 1
+         "ids_2" : list of str
+            Origin, destination and content for task 2
+         "trajectory" : str
+            Polynomial trajectory used
+         "control_type" : str
+            "geometric", "positions" or "velocities"
+         "coppelia" : bool
+            True if coppelia sim support is enabled
+         "constraints" : bool
+            True if the constraints are enabled
+        }
     
     language : Language.Language
         Language of the generated code
@@ -1800,7 +2421,8 @@ def generate_everything(robot, list_ftm, list_btm, list_fk, list_jac, com,
 
     # NUmber of functions to generate
     total_fcts = len(list_ftm + list_btm + list_fk + list_jac +
-                     polynomial_trajectories) + com + com_jac
+                     polynomial_trajectories + control_loops_list) + com +\
+                     com_jac
     progress_0 = 0
     progress_increment = 100/total_fcts
 
@@ -1878,12 +2500,23 @@ def generate_everything(robot, list_ftm, list_btm, list_fk, list_jac, com,
                 progressbar=progressbar,
                 progress_increment=progress_increment)
 
+        par = None
         if polynomial_trajectories:
-            code += generate_all_polynomial_trajectories(
-                    polynomial_trajectories,
-                    language,
-                    progressbar=progressbar,
-                    progress_increment=progress_increment)
+            code_, par = generate_all_polynomial_trajectories(
+                         polynomial_trajectories,
+                         language,
+                         progressbar=progressbar,
+                         progress_increment=progress_increment)
+            code += code_
+
+        if control_loops_list:
+            code += generate_all_control_loops(
+                control_loops_list,
+                robot,
+                par,
+                language,
+                progressbar=progressbar,
+                progress_increment=progress_increment)
 
         code += '\n'
 
