@@ -34,6 +34,8 @@ ftm_list = []  # Forward transition matrices list
 btm_list = []  # Backward transition matrices list
 fk_list = []  # Forward Kinematics List
 jac_list = []  # Jacobian list
+com_list = []  # Center of mass list
+com_jac_list = [] # Center of mass jacobians list
 polynomial_trajectories = []  # Polynomial trajectories list
 control_loops_list = []  # Control loops list
 
@@ -232,6 +234,8 @@ def content_fk_jac_loops(ui, which):
     which : str
         "fk" if the list to update is the Forward Kinematics list
         "jac" if the list to update is the Jacobian matrices list
+        "com" if the list to update is the com list
+        "com_jac" if the list to update is the com jac list
         "loops_1" if the list to update is the Control Loop list tab 1
         "loops_2" if the list to update is the Control Loop list tab 2
 
@@ -270,6 +274,24 @@ def content_fk_jac_loops(ui, which):
             content += "p"
         if ui.checkBox_jac_wz.isChecked():
             content += "Y"
+
+    # CoM
+    elif which == "com":
+        if ui.checkBox_com_x.isChecked():
+            content += "x"
+        if ui.checkBox_com_y.isChecked():
+            content += "y"
+        if ui.checkBox_com_z.isChecked():
+            content += "z"
+
+    # CoM Jacobian
+    elif which == "com_jac":
+        if ui.checkBox_com_jac_x.isChecked():
+            content += "x"
+        if ui.checkBox_com_jac_y.isChecked():
+            content += "y"
+        if ui.checkBox_com_jac_z.isChecked():
+            content += "z"
 
     # Loops 1
     elif which == "loops_1":
@@ -492,6 +514,123 @@ def del_fk_jac(list_widget, fk):
         else:
             del jac_list[index]
             print(jac_list)
+
+
+# Add a center of mass _______________________________________________________
+
+def add_com(ui):
+    """
+    Description
+    -----------
+
+    Adds a CoM to the list
+
+    Parameters
+    ----------
+
+    ui : main_window.Ui_MainWindow
+        GUI to update
+
+    Global Variables Used
+    ---------------------
+
+    com_list : list
+        list containing all the contents of the center of mass
+
+    """
+    global com_list
+
+    content = content_fk_jac_loops(ui, "com")
+    if content in com_list:
+        return
+    com_list.append(content)
+    ui.listWidget_com.addItem(f"Center of Mass {parse_content(content)}")
+
+
+# Delete a CoM _______________________________________________________________
+
+def del_com(ui):
+    """
+    Remove all the selected coms from the list
+
+    Parameters
+    ----------
+    ui : main_window.Ui_MainWindow
+        GUI to update
+
+    Global Variables Used
+    ---------------------
+
+    com_list : list
+        list containing all the contents of the center of mass
+    """
+    global com_list
+
+    # Getting the selected items
+    selection = ui.listWidget_com.selectedItems()
+    for item in selection:
+        index = ui.listWidget_com.row(item)
+        ui.listWidget_com.takeItem(index)
+        del com_list[index]
+
+
+# Add a center of mass _______________________________________________________
+
+def add_com_jac(ui):
+    """
+    Description
+    -----------
+
+    Adds a CoM Jacobian to the list
+
+    Parameters
+    ----------
+
+    ui : main_window.Ui_MainWindow
+        GUI to update
+
+    Global Variables Used
+    ---------------------
+
+    com_jac_list : list
+        list containing all the contents of the center of mass jacobians
+
+    """
+    global com_jac_list
+
+    content = content_fk_jac_loops(ui, "com_jac")
+    if content in com_jac_list:
+        return
+    com_jac_list.append(content)
+    ui.listWidget_com_jac.addItem(f"Center of Mass Jacobian "
+                                  f"{parse_content(content)}")
+
+
+# Delete a CoM _______________________________________________________________
+
+def del_com_jac(ui):
+    """
+    Remove all the selected com jacobians from the list
+
+    Parameters
+    ----------
+    ui : main_window.Ui_MainWindow
+        GUI to update
+
+    Global Variables Used
+    ---------------------
+
+    com_jac_list : list
+        list containing all the contents of the center of mass jacobians
+    """
+    global com_jac_list
+
+    # Getting the selected items
+    selection = ui.listWidget_com_jac.selectedItems()
+    for item in selection:
+        index = ui.listWidget_com_jac.row(item)
+        ui.listWidget_com_jac.takeItem(index)
+        del com_jac_list[index]
 
 
 # Add a polynomial trajectory ________________________________________________
@@ -1441,6 +1580,12 @@ def init_gui_from_robot(gui, robot):
     
     jac_list : list of string
         List of all the jacobians
+
+    com_list : list of str
+        Contents of the coms
+
+    com_jac_list : list of str
+        Contents of the com jacobians
     
     Returns
     -------
@@ -1453,6 +1598,9 @@ def init_gui_from_robot(gui, robot):
     global btm_list  # Backward transition matrices list
     global fk_list
     global jac_list
+    global com_list
+    global com_jac_list
+    global polynomial_trajectories
 
     # Robot Information ......................................................
 
@@ -1647,10 +1795,56 @@ def init_gui_from_robot(gui, robot):
     gui.checkBox_btm.setChecked(False)
     gui.checkBox_fk.setChecked(True)
     gui.checkBox_jac.setChecked(True)
-    gui.checkBox_com.setChecked(True)
-    gui.checkBox_com_jac.setChecked(True)
+
+    # CoM ....................................................................
+
+    gui.listWidget_com.clear()
+    gui.listWidget_com_jac.clear()
+    satus_ = robot.mass > 0
+    if satus_:
+        gui.listWidget_com.addItem("Center of Mass (x, y, z)")
+        com_list = ["xyz"]
+        gui.listWidget_com_jac.addItem("Center of Mass Jacobian (x, y, z)")
+        com_jac_list = ["xyz"]
+    else:
+        com_list = []
+        com_jac_list = []
+    gui.checkBox_com.setChecked(satus_)
+    gui.checkBox_com_x.setChecked(satus_)
+    gui.checkBox_com_y.setChecked(satus_)
+    gui.checkBox_com_z.setChecked(satus_)
+    gui.checkBox_com_jac.setChecked(satus_)
+    gui.checkBox_com_jac_x.setChecked(satus_)
+    gui.checkBox_com_jac_y.setChecked(satus_)
+    gui.checkBox_com_jac_z.setChecked(satus_)
+
+    gui.checkBox_com.setEnabled(satus_)
+    gui.listWidget_com.setEnabled(satus_)
+    gui.pushButton_add_com.setEnabled(satus_)
+    gui.pushButton_del_com.setEnabled(satus_)
+    gui.checkBox_com_x.setEnabled(satus_)
+    gui.checkBox_com_y.setEnabled(satus_)
+    gui.checkBox_com_z.setEnabled(satus_)
+    gui.checkBox_com_jac.setEnabled(satus_)
+    gui.listWidget_com_jac.setEnabled(satus_)
+    gui.pushButton_add_com_jac.setEnabled(satus_)
+    gui.pushButton_del_com_jac.setEnabled(satus_)
+    gui.checkBox_com_jac_x.setEnabled(satus_)
+    gui.checkBox_com_jac_y.setEnabled(satus_)
+    gui.checkBox_com_jac_z.setEnabled(satus_)
 
     # Polynomial Trajectories ................................................
+
+    polynomial_trajectories = [{"name": "r",
+                                "conditions": [["0", "0", "0"],
+                                               ["0", "tf", "1"],
+                                               ["1", "0", "0"],
+                                               ["1", "tf", "0"],
+                                               ["2", "0", "0"],
+                                               ["2", "tf", "0"]
+                                               ]}]
+    gui.listWidget_poly.clear()
+    gui.listWidget_poly.addItem("r")
 
     gui.pushButton_poly_del.setEnabled(True)
     gui.pushButton_poly_new_traj.setEnabled(True)
@@ -1669,6 +1863,8 @@ def init_gui_from_robot(gui, robot):
 
     gui.comboBox_loops_trajectory.clear()
     gui.comboBox_loops_trajectory.addItem("(None)")
+    gui.comboBox_loops_trajectory.addItem("r")
+    gui.comboBox_loops_trajectory.setCurrentText("r")
     gui.radioButton_loops_effector.setChecked(True)
     gui.checkBox_loops_x.setChecked(True)
     gui.checkBox_loops_y.setChecked(True)
@@ -1842,20 +2038,21 @@ def generate(gui):
     global btm_list
     global fk_list
     global jac_list
+    global com_list
+    global com_jac_list
 
     ftm = ftm_list if gui.checkBox_ftm.isChecked() else []
     btm = btm_list if gui.checkBox_btm.isChecked() else []
     fk = fk_list if gui.checkBox_fk.isChecked() else []
     jac = jac_list if gui.checkBox_jac.isChecked() else []
-
-    com = gui.checkBox_com.isChecked()
-    comjac = gui.checkBox_com_jac.isChecked()
+    com = com_list if gui.checkBox_com.isChecked() else []
+    com_jac = com_jac_list if gui.checkBox_com_jac.isChecked() else []
 
     language = Language(settings["language"])
     optimization_level = settings["optimization_level"]
 
     generate_everything(robot_obj, ftm, btm,
-                        fk, jac, com, comjac,
+                        fk, jac, com, com_jac,
                         polynomial_trajectories,
                         control_loops_list,
                         optimization_level,
@@ -1971,6 +2168,16 @@ def main():
         .connect(lambda:
                  del_fk_jac(ui.listWidget_jac,
                             False))
+
+    # CoM ....................................................................
+
+    ui.pushButton_add_com.clicked.connect(lambda: add_com(ui))
+    ui.pushButton_del_com.clicked.connect(lambda: del_com(ui))
+
+    # CoM Jacobians ..........................................................
+
+    ui.pushButton_add_com_jac.clicked.connect(lambda: add_com_jac(ui))
+    ui.pushButton_del_com_jac.clicked.connect(lambda: del_com_jac(ui))
 
     # Polynomial Trajectories ................................................
 

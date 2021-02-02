@@ -520,13 +520,16 @@ class Robot:
 
     # Center of mass _________________________________________________________
 
-    def com(self, optimization_level):
+    def com(self, content, optimization_level):
         """
         Computes the center of mass of the robot.
         Returned as a 3x1 vector.
 
         Parameters
         ----------
+
+        content : str
+            Content of the center of mass ("xyz", "xz", ...)
 
         optimization_level : int
             0 or 1 => The CoM is not simplified at all
@@ -549,71 +552,90 @@ class Robot:
             raise ValueError("Cannot compute the robot center of mass "
                              "because its mass is equal to 0 kg")
 
-        if self.saved_com is not None:
-            if self.saved_com[1] >= optimization_level:
-                return self.saved_com[0]
+        if self.saved_com is not None\
+                and self.saved_com[1] >= optimization_level:
+            com_expr = self.saved_com[0]
+        else:
+            def recursive_com(link, frame):
+                """
+                Recursive function to compute the center of mass
+                Parameters
+                ----------
+                link : links.Link
+                    Link from which you want to compute the center of mass.
 
-        def recursive_com(link, frame):
-            """
-            Recursive function to compute the center of mass
-            Parameters
-            ----------
-            link : links.Link
-                Link from which you want to compute the center of mass.
+                frame : links.link
+                    Frame in which you want to express the CoM
 
-            frame : links.link
-                Frame in which you want to express the CoM
+                Returns
+                -------
 
-            Returns
-            -------
+                com : sympy.matrices.dense.MutableDenseMatrix
+                    Jacobian matrix between origin and destination
 
-            com : sympy.matrices.dense.MutableDenseMatrix
-                Jacobian matrix between origin and destination
+                """
+                m = link.mass / self.mass
+                hc = ones(4, 1)
+                hc[:3, :] = link.com
+                if link.is_root:
+                    T = eye(4, 4)
+                else:
+                    T = self.forward_kinematics(f"link_{frame.link_id}",
+                                                f"joint_"
+                                                f"{link.child_joints[0]}")
+                cm = m * (T @ hc)
+                if link.is_terminal:
+                    return cm
+                else:
+                    for child in link.parent_joints:
+                        cm += recursive_com(self.links[self.joints[child]
+                                            .child],
+                                            frame)
+                    return cm
 
-            """
-            m = link.mass / self.mass
-            hc = ones(4, 1)
-            hc[:3, :] = link.com
-            if link.is_root:
-                T = eye(4, 4)
-            else:
-                T = self.forward_kinematics(f"link_{frame.link_id}",
-                                            f"joint_{link.child_joints[0]}")
-            cm = m * (T @ hc)
-            if link.is_terminal:
-                return cm
-            else:
-                for child in link.parent_joints:
-                    cm += recursive_com(self.links[self.joints[child].child],
-                                        frame)
-                return cm
+            com_expr = None
+            for link in self.links:
+                if link.is_root:
+                    com_expr = recursive_com(link, link)
+                    break
 
-        com_expr = None
-        for link in self.links:
-            if link.is_root:
-                com_expr = recursive_com(link, link)
-                break
+            if optimization_level > 1:
+                com_expr = factor(com_expr).evalf()\
+                    .nsimplify(tolerance=1e-10)\
+                    .evalf()
+            if optimization_level > 2:
+                com_expr = com_expr.simplify().nsimplify(tolerance=1e-10)\
+                    .evalf()
 
-        if optimization_level > 1:
-            com_expr = factor(com_expr).evalf().nsimplify(tolerance=1e-10)\
-                .evalf()
-        if optimization_level > 2:
-            com_expr = com_expr.simplify().nsimplify(tolerance=1e-10).evalf()
+            com_expr = com_expr[:3, :]
+            self.saved_com = [com_expr, optimization_level]
 
-        com_expr = com_expr[:3, :]
-        self.saved_com = [com_expr, optimization_level]
+        all_lines = "xyz"
+        to_del = []
+        comret = com_expr.copy()
+        for i, line in enumerate(all_lines):
+            if line not in content:
+                to_del.append(i)
+        for ddel in to_del[::-1]:
+            tmp = comret.row_del(ddel)
+            if tmp is not None:
+                comret = tmp
 
-        return com_expr
+        return comret
 
     # CoM Jacobian ___________________________________________________________
 
-    def com_jacobian(self, optimization_level):
+    def com_jacobian(self, content, optimization_level):
         """
         Computes  the  jacobian  of  the  center  of  mass  (only position, no
         orientation).
 
         Parameters
         ----------
+
+        content : str
+            Content of the CoM Jacobian ("xy", "xyz", ...)
+
         optimization_level : int
             0 or 1 => The CoM Jacobian is not simplified at all
             2 => The CoM Jacobian is factored
@@ -627,23 +649,35 @@ class Robot:
             frame.
         """
 
-        if self.saved_com_jac is not None:
-            if self.saved_com_jac[1] >= optimization_level:
-                return self.saved_com_jac[0]
+        if self.saved_com_jac is not None\
+                and self.saved_com_jac[1] >= optimization_level:
+            com_jac = self.saved_com_jac[0]
+        else:
+            com_expr = self.com("xyz", optimization_level)
 
-        com_expr = self.com(optimization_level)
+            com_jac = com_expr.jacobian(self.dof)
 
-        com_jac = com_expr.jacobian(self.dof)
+            if optimization_level > 1:
+                com_jac = factor(com_jac).evalf().nsimplify(tolerance=1e-10) \
+                    .evalf()
+            if optimization_level > 2:
+                com_jac = com_jac.simplify().nsimplify(tolerance=1e-10)\
+                    .evalf()
 
-        if optimization_level > 1:
-            com_jac = factor(com_jac).evalf().nsimplify(tolerance=1e-10) \
-                .evalf()
-        if optimization_level > 2:
-            com_jac = com_jac.simplify().nsimplify(tolerance=1e-10).evalf()
+            self.saved_com_jac = [com_jac, optimization_level]
 
-        self.saved_com_jac = [com_jac, optimization_level]
+        all_lines = "xyz"
+        to_del = []
+        Jret = com_jac.copy()
+        for i, line in enumerate(all_lines):
+            if line not in content:
+                to_del.append(i)
+        for ddel in to_del[::-1]:
+            tmp = Jret.row_del(ddel)
+            if tmp is not None:
+                Jret = tmp
 
-        return com_jac
+        return Jret
 
     # Converting to String ___________________________________________________
 

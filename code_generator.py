@@ -893,8 +893,8 @@ def generate_all_jac(robot, list_origin, list_dest, list_content,
 
 # Generate Center of Mass Position ___________________________________________
 
-def generate_com(robot, optimization_level, language=Language('python'),
-                 progressbar=None, progress_increment=0):
+def generate_com(robot, content,
+                 optimization_level, language=Language('python')):
     """
     Generate the code for the center of mass of the robot
 
@@ -902,6 +902,9 @@ def generate_com(robot, optimization_level, language=Language('python'),
     ----------
     robot : robots.Robot
         Robot you want to generate the center of mass function from
+
+    content : str
+        Content of the center of mass of the robot ("xyz", "xy", ...)
 
     optimization_level : int
         - 0 => CoM is computed numerically (fastest to generate, slowest code
@@ -913,16 +916,6 @@ def generate_com(robot, optimization_level, language=Language('python'),
         Language you want the code to be generated to
         Default is Language('python')
 
-    progressbar : PyQt5.QtWidgets.QProgressBar or None, optional
-        default is None
-        Progressbar to update during the robot creation (used in GUI)
-        If it is None, no progressbar is updated
-
-    progress_increment : float
-        Progressbar  increment.  Default  is  0.  If progressbar is None, this
-        parameter is ignored.
-
-
     Returns
     -------
     str : 
@@ -933,7 +926,7 @@ def generate_com(robot, optimization_level, language=Language('python'),
     print(f"Generating Center of Mass")
 
     # Adding Title
-    code = language.title("Center of Mass of the Robot", 0)
+    code = language.title("Center of Mass of the Robot", 1)
     code += '\n\n'
 
     # Total Mass of the robot ................................................
@@ -1047,7 +1040,7 @@ def generate_com(robot, optimization_level, language=Language('python'),
         for rem in to_remove:
             varss.pop(rem)
     else:
-        com = robot.com(optimization_level)
+        com = robot.com(content, optimization_level)
 
         all_sym = robot.dof
 
@@ -1086,14 +1079,65 @@ def generate_com(robot, optimization_level, language=Language('python'),
              f' is returned as a {dimensions}'
 
     if optimization_level == 0:
-        code += language.generate_fct("mat", 'com', [paramq], expr[1:], varss,
+        code += language.generate_fct("mat", f'com_{content}', [paramq],
+                                      expr[1:], varss,
                                       docstr, matrix_dims=(1, 1))
     else:
-        code += generate_code_from_sym_mat(com, 'com', language, docstr,
+        code += generate_code_from_sym_mat(com, f'com_{content}', language,
+                                           docstr,
                                            input_is_vector=True,
                                            dof=robot.dof)
+    return code
 
-    increment_progressbar(progressbar, progress_increment)
+
+# Generate all CoMs __________________________________________________________
+
+def generate_all_coms(robot, list_content,
+                      optimization_level, language=Language('python'),
+                      progressbar=None, progress_increment=0):
+    """
+    Generate all the CoMs functions.
+
+    Parameters
+    ----------
+    robot : robots.Robot
+        Robot you want to generate the center of mass functions from
+
+    content : list of str
+        Content of the center of mass of the robot ("xyz", "xy", ...)
+
+    optimization_level : int
+        - 0 => CoM is computed numerically (fastest to generate, slowest code
+        - 1 => CoM is computed analytically but is not simplified
+        - 2 => CoM is computed analytically and is factored
+        - 3 => CoM is computed analytically and is simplified
+
+    language : Language.Language, optional
+        Language you want the code to be generated to
+        Default is Language('python')
+
+    progressbar : PyQt5.QtWidgets.QProgressBar or None, optional
+        default is None
+        Progressbar to update during the robot creation (used in GUI)
+        If it is None, no progressbar is updated
+
+    progress_increment : float
+        Progressbar  increment.  Default  is  0.  If progressbar is None, this
+        parameter is ignored.
+
+    Returns
+    -------
+
+    code : str
+        Generated code of all the CoMs
+
+    """
+
+    code = language.title("Center of Mass", 0)
+    for com in list_content:
+        code += generate_com(robot, com, optimization_level, language)
+        code += "\n\n"
+        increment_progressbar(progressbar, progress_increment)
     return code
 
 
@@ -1101,8 +1145,6 @@ def generate_com(robot, optimization_level, language=Language('python'),
 
 def generate_com_jacobian(robot, optimization_level,
                           language=Language('python'),
-                          progressbar=None,
-                          progress_increment=0,
                           content="xyz"):
     """
     Generate the code for the jacobian of the center of mass of the robot
@@ -1123,15 +1165,6 @@ def generate_com_jacobian(robot, optimization_level,
         Language you want the code to be generated to
         Default is Language('python')
 
-    progressbar : PyQt5.QtWidgets.QProgressBar or None, optional
-        default is None
-        Progressbar to update during the robot creation (used in GUI)
-        If it is None, no progressbar is updated
-
-    progress_increment : float
-        Progressbar  increment.  Default  is  0.  If progressbar is None, this
-        parameter is ignored.
-
     content : str
         Content of the center of mass of the robot ("xyz", "xy")
 
@@ -1146,7 +1179,7 @@ def generate_com_jacobian(robot, optimization_level,
     print(f"Generating Center of Mass Jacobian")
 
     # Adding Title
-    code = language.title("Jacobian of the Center of Mass of the Robot", 0)
+    code = language.title("Jacobian of the Center of Mass of the Robot", 1)
     code += '\n\n'
 
     params = []
@@ -1291,10 +1324,9 @@ def generate_com_jacobian(robot, optimization_level,
         for rem in to_remove:
             varss.pop(rem)
     else:
-        jac = robot.com_jacobian(optimization_level)
+        jac = robot.com_jacobian(content, optimization_level)
         all_sym = robot.dof
         params += get_parameters(all_sym)
-        nb_dof = len(all_sym)
 
     descrq = 'Vector of all the degrees of freedom of the robot that have ' \
              'an effect on the center of mass position. This vector ' \
@@ -1353,15 +1385,70 @@ def generate_com_jacobian(robot, optimization_level,
                   f'{param.name}'
 
     if optimization_level == 0:
-        code += language.generate_fct("mat", 'jacobian_com', paar, expr,
+        code += language.generate_fct("mat", f'jacobian_com_{content}', paar,
+                                      expr,
                                       varss,
                                       docstr, matrix_dims=(1, 1))
     else:
-        code += generate_code_from_sym_mat(jac, 'jacobian_com', language,
+        code += generate_code_from_sym_mat(jac, f'jacobian_com_{content}',
+                                           language,
                                            docstr, input_is_vector=True,
                                            dof=robot.dof)
+    return code
 
-    increment_progressbar(progressbar, progress_increment)
+
+# Generate all the CoM Jacobians _____________________________________________
+
+def generate_all_com_jac(robot, list_content, optimization_level,
+                         language=Language('python'),
+                         progressbar=None,
+                         progress_increment=0):
+    """
+    Generate the code for all the jacobian of the center of mass of the robot
+
+    Parameters
+    ----------
+    robot : robots.Robot
+        Robot you want to generate the center of mass jacobian function from
+
+    list_content : list of str
+        List of the content of the center of mass of jacobian the robot ("xyz"
+        "xy")
+
+    optimization_level : int
+        - 0 => CoM  Jacobian  is  computed  numerically  (fastest to generate,
+        slowest code
+        - 1 => CoM Jacobian is computed analytically but is not simplified
+        - 2 => CoM Jacobian is computed analytically and is factored
+        - 3 => CoM Jacobian is computed analytically and is simplified
+
+    language : Language.Language, optional
+        Language you want the code to be generated to
+        Default is Language('python')
+
+    progressbar : PyQt5.QtWidgets.QProgressBar or None, optional
+        default is None
+        Progressbar to update during the robot creation (used in GUI)
+        If it is None, no progressbar is updated
+
+    progress_increment : float
+        Progressbar  increment.  Default  is  0.  If progressbar is None, this
+        parameter is ignored.
+
+
+    Returns
+    -------
+    str :
+        Code of the CoM Jacobian functions in the desired language
+
+    """
+
+    code = language.title("Center of Mass Jacobians", 0)
+    for com in list_content:
+        code += generate_com_jacobian(robot, optimization_level, language,
+                                      content=com)
+        code += "\n\n"
+        increment_progressbar(progressbar, progress_increment)
     return code
 
 
@@ -1667,6 +1754,9 @@ def generate_control_loop(loop, robot, traj_parameters, language):
     # Function name, docstring ...............................................
 
     fname = f"kinematic_control_loop_{loop['type']}_{loop['ids'][2]}"
+    if loop["type_2"] is not None:
+        fname += f"_{loop['type_2']}_{loop['ids_2'][2]}"
+
     docstr = docstr_control_loop(loop)
 
     # defining Parameters ....................................................
@@ -2104,7 +2194,8 @@ def generate_control_loop(loop, robot, traj_parameters, language):
 
                 var_w = {"name": f"w{suffix[i]}",
                          "type": "mat",
-                         "value": f"L{suffix[i]}**(-1) @ (err_o{suffix[i]}"
+                         "value": f"___matinv__L{suffix[i]}___ @ "
+                                  f"(err_o{suffix[i]}"
                                   f"*ko{suffix[i]} + transpose(L{suffix[i]})"
                                   f"@wd_tmp{suffix[i]})"}
                 varss.append(var_w)
@@ -2271,8 +2362,9 @@ def generate_all_control_loops(control_loops_list,
 
 # Generate Everything ________________________________________________________
 
-def generate_everything(robot, list_ftm, list_btm, list_fk, list_jac, com,
-                        com_jac, polynomial_trajectories, control_loops_list,
+def generate_everything(robot, list_ftm, list_btm, list_fk, list_jac,
+                        list_com,
+                        list_com_jac, polynomial_trajectories, control_loops_list,
                         optimization_level,
                         language, filename, progressbar=None):
     """
@@ -2340,13 +2432,11 @@ def generate_everything(robot, list_ftm, list_btm, list_fk, list_jac, com,
             
             Example : origin = 'joint_3'
     
-    com : bool
-        Set  this parameter to True if you want to generate the Center of Mass
-        function.
+    list_com : list of str
+        List containing all the contents of the coms ("xyz", ...)
 
-    com_jac : bool
-        Set  this parameter to True if you want to generate the Center of Mass
-        Jacobian.
+    list_com_jac : list of str
+        List containing all the contents of the com jacs ("xyz", ...)
 
     polynomial_trajectories : list of dict
         list of all the polynomial trajectories to generate.
@@ -2421,9 +2511,8 @@ def generate_everything(robot, list_ftm, list_btm, list_fk, list_jac, com,
 
     # NUmber of functions to generate
     total_fcts = len(list_ftm + list_btm + list_fk + list_jac +
-                     polynomial_trajectories + control_loops_list) + com +\
-                     com_jac
-    progress_0 = 0
+                     polynomial_trajectories + control_loops_list + list_com +
+                     list_com_jac)
     progress_increment = 100/total_fcts
 
     # Opening the file in write mode
@@ -2486,17 +2575,16 @@ def generate_everything(robot, list_ftm, list_btm, list_fk, list_jac, com,
                                      progressbar=progressbar,
                                      progress_increment=progress_increment)
 
-        if com:
+        if list_com:
             code += '\n\n'
-            code += generate_com(robot, optimization_level, language,
-                                 progressbar=progressbar,
-                                 progress_increment=progress_increment
-                                 )
+            code += generate_all_coms(robot, list_com, optimization_level,
+                                      language, progressbar=progressbar,
+                                      progress_increment=progress_increment)
 
-        if com_jac:
+        if list_com_jac:
             code += '\n\n'
-            code += generate_com_jacobian(
-                robot, optimization_level, language,
+            code += generate_all_com_jac(
+                robot, list_com_jac, optimization_level, language,
                 progressbar=progressbar,
                 progress_increment=progress_increment)
 

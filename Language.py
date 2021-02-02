@@ -144,6 +144,7 @@ class Language:
             - cross : Cross product
             - vcat : vertical concatenation of matrices / vectors
             - pluseq : += syntax
+            - matinv : matrix inverse
     
     docstr_before : bool
         True if the docstring is written before the function declaration
@@ -248,7 +249,8 @@ class Language:
                          'zeros': 'zeros((__param1__, __param2__))',
                          'cross': 'cross(__param1__, __param2__)',
                          'vcat': 'vstack((__param1__, __param2__))',
-                         'pluseq': '__param1__ += __param2__'}
+                         'pluseq': '__param1__ += __param2__',
+                         'matinv': 'inv(__param1__)'}
             self.docstr_before = False
             self.extension = 'py'
             self.mat_obj_start = 'array(['
@@ -260,6 +262,7 @@ class Language:
             self.header = "from math import cos, sin, acos, abs" \
                           "\nfrom numpy import vstack, " + \
                           "array, cross, dot, zeros, eye, transpose, norm" \
+                          "\nfrom numpy.linalg import inv, pinv" \
                           "\nimport time"
 
             self.subscription = 1
@@ -301,7 +304,8 @@ class Language:
                          'zeros': 'zeros(__param1__, __param2__)',
                          'cross': 'cross(__param1__, __param2__)',
                          'vcat': 'vcat(__param1__, __param2__)',
-                         'pluseq': '__param1__ += __param2__'}
+                         'pluseq': '__param1__ += __param2__',
+                         'matinv': 'inv(__param1__)'}
             self.docstr_before = True
             self.extension = 'jl'
             self.mat_obj_start = 'vcat('
@@ -351,7 +355,8 @@ class Language:
                          'zeros': 'zeros(__param1__, __param2__)',
                          'cross': 'cross(__param1__, __param2__)',
                          'vcat': "[__param1__; __param2__]",
-                         'pluseq': '__param1__ = __param1__ + __param2__'}
+                         'pluseq': '__param1__ = __param1__ + __param2__',
+                         'matinv': 'inv(__param1__)'}
             self.docstr_before = False
             self.extension = 'm'
             self.mat_obj_start = '['
